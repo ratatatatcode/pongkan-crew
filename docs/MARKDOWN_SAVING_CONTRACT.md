@@ -17,6 +17,7 @@ Researcher's corrected scope treats “add” as adding the Markdown commands, n
 
 - Export task records for individual assignments and workflow plan, work, review, and summary tasks. Include the task ID, member, kind, status, timestamps, original assignment, current response, clarification questions and answers, error when present, and captured changed-file names when available. Preserve available responses for failed, cancelled, interrupted, and waiting tasks.
 - Export Crew Chat discussion records with discussion ID, status, timestamp, and the ordered user and assistant messages, with their speaker labels. Save incremental completed replies, not streamed tokens.
+- Group replies with their assigned user prompt, even when another prompt was queued before those replies arrived. For new user messages, include Enter versus Shift+Left submission labels, submission timestamps, actual start timestamps when available, and a waiting status for queued prompts. Older messages without submission metadata retain their existing labels.
 - Task exports can include discussion tasks as separate task records; discussion exports provide the complete ordered conversation view. This duplication is deliberate and each file identifies its record type.
 - Do not export credentials, session identifiers, private state files, raw execution logs, or full captured diffs. Preserve the response's Markdown and avoid context-optimization clipping in exports.
 - Do not create additional agent turns or change task/review success semantics. Export errors are separate from task failures.
@@ -27,7 +28,7 @@ Researcher's corrected scope treats “add” as adding the Markdown commands, n
 - Discussion: `docs/pongkan-docs/discussion-<discussion-id>.md`.
 - Use validated eight-character hexadecimal record IDs, never prompt text, member names, or user-supplied paths to construct filenames.
 - Rewrite the same file with a complete snapshot whenever its record changes while enabled. Clarification continuations retain the task ID and update that task file. Repeated saves do not append duplicate content.
-- Existing discussion follow-ups create new discussion IDs and copy conversation history. Export each follow-up to its own discussion file; earlier files remain historical snapshots. No stable conversation identity change is required for this feature.
+- Follow-ups queued during an active discussion retain its discussion ID and update the same export. They begin only after all turns for the earlier prompt finish. Follow-ups after completion create a new discussion ID and copy conversation history; earlier files remain historical snapshots.
 - Task and workflow retries already create new task IDs, producing separate files. `/new` produces a separate discussion record and preserves earlier exports.
 - Export after authoritative state saving succeeds. Changes to unrelated settings do not rewrite all historical exports. On restart, export records whose status is changed to interrupted when enabled; do not backfill unchanged records.
 

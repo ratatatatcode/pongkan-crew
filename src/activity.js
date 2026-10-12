@@ -1,7 +1,9 @@
 import { clean } from './markdown.js';
 const bounded = (value, limit = 1200) => {
   const text = clean(value || '');
-  return text.length > limit ? text.slice(0, limit) + '\n[output truncated]' : text;
+  return text.length > limit
+    ? text.slice(0, limit) + `\n[${(text.length - limit).toLocaleString('en-US')} more characters]`
+    : text;
 };
 
 export function describeCodexEvent(event) {

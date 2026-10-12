@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Crew } from '../src/crew.js';
-import { execute, HELP } from '../src/commands.js';
+import { execute, HELP, queuePrompt } from '../src/commands.js';
 import { screen } from '../src/ui.js';
 
 function setup(t) {
@@ -13,6 +13,23 @@ function setup(t) {
   const crew = new Crew(folder);
   return { crew, selected: 'chief', panel: null, notice: '', scroll: 0, send() {}, quit() {} };
 }
+
+test('queue shortcut submits a follow-up and resumes a paused crew without commands', t => {
+  const app = setup(t);
+  app.view = 'group';
+  app.crew.queue.pause();
+  const discussion = app.crew.discussions.start('Introduce yourselves');
+  // Keep execution offline while verifying the keyboard submission boundary.
+  app.crew.queue.drain = () => {};
+  queuePrompt(app, 'What did you just do?');
+  assert.equal(app.crew.queue.paused, false);
+  assert.equal(app.crew.discussions.current, discussion);
+  assert.equal(discussion.messages.at(-1).text, 'What did you just do?');
+  assert.equal(discussion.messages[0].submission, 'enter');
+  assert.equal(discussion.messages.at(-1).submission, 'shift-left');
+  assert.equal(discussion.status, 'working');
+  assert.match(app.notice, /queued/i);
+});
 
 test('new-all opens fresh saved chats for the whole crew and preserves previous history across restart', t => {
   const app = setup(t);

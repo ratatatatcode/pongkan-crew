@@ -4,15 +4,17 @@
 
 `/markdown on` enables task and Crew Chat exports and creates `docs/pongkan-docs/` in the selected project. `/markdown off` stops subsequent exports without deleting documents. `/markdown` reports the mode and destination. The setting persists per project and defaults to off.
 
-Changed records save as `task-<id>.md` or `discussion-<id>.md`. Continuations update the same task file; retries and discussion follow-ups have separate IDs. Exports include full saved responses, status, prompts, clarification answers, and speaker labels. Enabling does not backfill unchanged history. Export failures appear in Activity while original results remain saved. Unrelated existing files and redirected paths are rejected.
+Changed records save as `task-<id>.md` or `discussion-<id>.md`. Continuations update the same task file; retries have separate IDs. Follow-ups queued during an active discussion update that discussion's file; follow-ups after completion create a new discussion ID with copied history. Exports include full saved responses, status, prompts, clarification answers, and speaker labels. Crew Chat user prompts record `Submitted with: Enter (preserve queue pause)` or `Submitted with: Shift+Left (queue and resume dispatch)`, submission/start times, and `Waiting for earlier prompts to finish` until started. Replies are grouped with their original prompt. Older saved messages without this metadata retain their original labels. Enabling does not backfill unchanged history. Export failures appear in Activity while original results remain saved. Unrelated existing files and redirected paths are rejected.
 
 Safe writing uses a PowerShell/.NET directory-lock helper on Windows and directory descriptors on Linux with `/proc/self/fd`. Other platforms currently report an unsupported-platform error when saving is enabled.
 
-[README](../README.md) · [Todo website walkthrough](TODO_WEBSITE_WALKTHROUGH.md)
+[README](README.md) · [Todo website walkthrough](TODO_WEBSITE_WALKTHROUGH.md)
 
 Enter commands **inside Pongkan Crew**, one message at a time, except for terminal commands below. Use names from your roster and replace uppercase placeholders with values shown by the app. `[Arguments]` are optional; omit the brackets.
 
 Plain text goes to the selected teammate in Chat or continues the shared read-only discussion in Crew Chat. Both include saved conversation context on follow-ups. Activity accepts commands only. `/task` goes to the lead; when used from Crew Chat, it includes the discussion as context.
+
+During an active Crew Chat discussion, new prompts wait until all turns for the current prompt finish, including its summary. They do not change the context of unfinished earlier turns. Queued prompts stay outside the live transcript with a waiting count and appear when their replies begin. Enter sends without changing the queue's paused state. Shift+Left queues the typed prompt and resumes paused dispatch, including other eligible queued tasks. Neither requires interrupting the current reply. Sending opens the conversation by closing any open panel. Tab remains teammate navigation or command/mention completion.
 
 `/crew-task [GOAL]` uses the latest Crew Chat as context from any tab. Without a goal, it asks the lead to implement the agreed plan; with a goal, it uses that instruction plus the discussion. It requires a nonempty Crew Chat and waits for you to finish or stop an active discussion. It creates a coordinated workflow and opens Crew Chat, where the lead's plan, teammate replies, review and final summary appear as turns finish. `/task GOAL` opens the lead's individual Chat and only attaches Crew Chat automatically when invoked from that view.
 
@@ -257,27 +259,33 @@ Choose IDs and effort levels from `/model list`; cached entries may be unavailab
 
 ## Help and keyboard shortcuts
 
-| Command or key      | Purpose                                                              | Sample usage                                                |
-| ------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `/help`, `?`, or F1 | Open help                                                            | `/help`                                                     |
-| `/help QUERY`       | Search command help                                                  | `/help questions`                                           |
-| Enter               | Send complete input                                                  | Paste one `/task ...` prompt, then Enter                    |
-| Tab / Shift+Tab     | Cycle teammates and Crew Chat; complete command/mention input        | Type `/chat dev`, then Tab                                  |
-| F2 / Shift+F2       | Cycle views forward/backward                                         | Chat → Crew Chat → Activity                                 |
-| Escape              | Close panel, return from group/activity to Chat, or clear Chat input | Press Esc                                                   |
-| Up / Down           | Preview previous / next submitted prompt; return to the new draft    | Press Up to recall a prompt, then Down to restore the draft |
-| PgUp / PgDn         | Scroll history or an open panel                                      | Press PgUp while work runs                                  |
-| Left / Right        | Move input cursor                                                    | Edit a word in a prompt                                     |
-| Home / End          | Move to beginning/end of complete input                              | Press Home                                                  |
-| Backspace / Delete  | Remove preceding/following character                                 | Correct input before sending                                |
-| Ctrl+U              | Clear input                                                          | Start the prompt again                                      |
-| Ctrl+W              | Delete preceding word                                                | Remove the last word                                        |
-| Ctrl+P / Ctrl+N     | Previous/next submitted input                                        | Recall a previous command                                   |
-| Ctrl+K              | Invoke `/stop` in the current view                                   | Stop selected work or discussion                            |
-| Ctrl+L              | Redraw screen                                                        | Refresh after resizing                                      |
-| Ctrl+C              | Stop work and exit                                                   | Close the CLI                                               |
+| Command or key       | Purpose                                                              | Sample usage                                           |
+| -------------------- | -------------------------------------------------------------------- | ------------------------------------------------------ |
+| `/help`, `?`, or F1  | Open help                                                            | `/help`                                                |
+| `/help QUERY`        | Search command help                                                  | `/help questions`                                      |
+| Enter                | Send complete input                                                  | Paste one `/task ...` prompt, then Enter               |
+| Tab / Shift+Tab      | Cycle teammates and Crew Chat; complete command/mention input        | Type `/chat dev`, then Tab                             |
+| F2 / Shift+F2        | Cycle views forward/backward                                         | Chat → Crew Chat → Activity                            |
+| Escape               | Close panel, return from group/activity to Chat, or clear Chat input | Press Esc                                              |
+| Up / Down            | Move between wrapped input lines; history beyond first/last line     | Move Up to edit an earlier line                        |
+| Shift+Left           | Queue the typed prompt and resume paused dispatch                    | Type a follow-up while the crew works, then Shift+Left |
+| PgUp / PgDn          | Scroll history or an open panel                                      | Press PgUp while work runs                             |
+| Left / Right         | Move input cursor                                                    | Edit a word in a prompt                                |
+| Home / End           | Move to beginning/end of the current input line                      | Press Home                                             |
+| Ctrl+Home / Ctrl+End | Move to beginning/end of the entire prompt                           | Jump to the first or last character                    |
+| Backspace / Delete   | Remove preceding/following character                                 | Correct input before sending                           |
+| Ctrl+U               | Clear input                                                          | Start the prompt again                                 |
+| Ctrl+W               | Delete preceding word                                                | Remove the last word                                   |
+| Ctrl+P / Ctrl+N      | Previous/next submitted input                                        | Recall a previous command                              |
+| Ctrl+K               | Invoke `/stop` in the current view                                   | Stop selected work or discussion                       |
+| Ctrl+L               | Redraw screen                                                        | Refresh after resizing                                 |
+| Ctrl+C               | Stop work and exit                                                   | Close the CLI                                          |
 
 Mouse wheel scrolls responses, activity and panels while the composer stays fixed. PgUp/PgDn also scroll content. Slash-command and mention completion take priority over Tab navigation when input begins with `/` or `@`.
+
+The composer shows up to five lines, depending on terminal height. Long input reserves one line for `[1,234 characters hidden]` and uses the remaining lines for text around the cursor. The count updates as you navigate; input is not truncated when submitted. Crew imposes no input character limit. Ctrl+P/Ctrl+N browse submitted prompts from any input line and restore the current draft after the newest history entry. The footer sits one blank line above the terminal edge.
+
+Activity previews show up to 1,200 characters of command output and 500 characters of command text, followed by `[2,350 more characters]` with the omitted count. This display limit does not shorten chat replies or Markdown responses.
 
 ## Terminal launch commands
 

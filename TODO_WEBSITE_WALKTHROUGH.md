@@ -1,12 +1,12 @@
 # Todo Website Walkthrough
 
-[Back to README](../README.md)
+[Back to README](README.md)
 
 Build the sample todo app in the `todo-app` folder with Next.js, shadcn/ui preset `b0`, and browser storage. The default Pongkan Crew (Chief, Researcher, Developer, Reviewer) was used.
 
-![Todo app walkthrough](../assets/images/todo-result.gif)
+![Todo app walkthrough](assets/images/todo-result.gif)
 
-[Download the full MP4](../assets/video/todo-result.mp4)
+[Download the full MP4](assets/video/todo-result.mp4)
 
 ## 1. Create the Next.js app
 

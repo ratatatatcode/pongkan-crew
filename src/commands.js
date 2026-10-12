@@ -115,11 +115,14 @@ export const HELP = [
   'F2 / Shift+F2                 Next / previous tab (Chat, Crew Chat, Activity)',
   'Esc                           Close panel / return to chat / clear input',
   'Tab on /command               Complete command or teammate name',
-  'Tab / Shift+Tab otherwise     Cycle teammates and Crew Chat',
-  'Up / Down                     Previous / next prompt; Down restores draft',
+  'Shift+Left                   Queue prompt; resume paused dispatch',
+  'Tab / Shift+Tab               Cycle teammates and Crew Chat',
+  'Up / Down                     Move input lines; history beyond first/last line',
   'Mouse wheel                   Scroll responses, activity or panels',
   'PgUp / PgDn                   Scroll history or panel',
-  'Left / Right, Home / End      Move input cursor',
+  'Left / Right                 Move input cursor across lines',
+  'Home / End                   Start / end of input line',
+  'Ctrl+Home / Ctrl+End          Start / end of entire prompt',
   'Backspace / Delete            Delete text at cursor',
   'Ctrl+U                        Clear input',
   'Ctrl+W                        Delete previous word',
@@ -157,7 +160,15 @@ export function cycle(app, direction) {
   app.panel = null;
   app.scroll = 0;
 }
-export function execute(app, line) {
+export function queuePrompt(app, text) {
+  const line = text.trim();
+  if (!line) return;
+  execute(app, line, { submission: 'shift-left' });
+  if (app.crew.queue.paused) app.crew.queue.resume();
+  app.notice = 'Message queued; dispatch active. Current turns continue.';
+}
+
+export function execute(app, line, { submission = 'enter' } = {}) {
   const crew = app.crew;
   app.notice = '';
   app.scroll = 0;
@@ -210,10 +221,15 @@ export function execute(app, line) {
       return;
     }
     if (mention || app.view === 'group') {
-      crew.discussions.start(mention ? mention[2] : line, mention?.[1]);
+      const continuing = crew.discussions.current?.status === 'working';
+      crew.discussions.start(mention ? mention[2] : line, mention?.[1], { submission });
       app.view = 'group';
       app.panel = null;
-      app.notice = crew.queue.paused ? 'Discussion queued; /queue resume to start.' : 'Discussion started.';
+      app.notice = crew.queue.paused
+        ? 'Message saved; /queue resume to continue.'
+        : continuing
+          ? 'Prompt queued; waiting for the entire current discussion to finish.'
+          : 'Discussion started.';
       return;
     }
     if (app.view === 'activity')
@@ -261,7 +277,7 @@ export function execute(app, line) {
     app.notice = `Answer saved for ${parts[0]}${crew.queue.paused ? '; /queue resume to continue' : '; assignment continues'}.`;
   } else if (command === '/discuss' || command === '/group') {
     if (command === '/discuss') {
-      crew.discussions.start(requireText(text));
+      crew.discussions.start(requireText(text), null, { submission });
       app.notice = crew.queue.paused ? 'Discussion queued; /queue resume to start.' : 'Discussion started.';
     }
     app.view = 'group';

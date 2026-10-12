@@ -1,4 +1,5 @@
 .pongkan-crew/
+/docs/pongkan-docs/
 .todo-scaffold/
 tasks/
 node_modules/

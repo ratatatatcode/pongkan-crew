@@ -111,6 +111,36 @@ test('discussion saves incremental ordered messages and reports conflicts withou
   assert.equal(f.state.tasks[0].result, 'Retained response');
 });
 
+test('discussion exports distinguish submission shortcuts and waiting prompts from active prompts', t => {
+  const f = fixture(t);
+  execute(f.app, '/markdown on');
+  const discussion = {
+    id: 'abcdef12',
+    status: 'working',
+    createdAt: 1,
+    taskIds: [],
+    messages: [
+      { role: 'user', speaker: 'you', text: 'First prompt', submission: 'enter', submittedAt: 1, startedAt: 2 },
+      { role: 'user', speaker: 'you', text: 'Next prompt', submission: 'shift-left', submittedAt: 3, queued: true },
+      { role: 'assistant', speaker: 'chief', text: 'First answer', discussionMessageIndex: 0 },
+    ],
+  };
+  f.state.discussions.push(discussion);
+  f.crew.save();
+  const file = join(f.folder, 'docs', 'pongkan-docs', 'discussion-abcdef12.md');
+  let content = readFileSync(file, 'utf8');
+  assert.match(content, /Submitted with: Enter/);
+  assert.match(content, /Submitted with: Shift\+Left/);
+  assert.match(content, /Waiting for earlier prompts to finish/);
+  assert.ok(content.indexOf('First answer') < content.indexOf('Next prompt'));
+  delete discussion.messages[1].queued;
+  discussion.messages[1].startedAt = 4;
+  f.crew.save();
+  content = readFileSync(file, 'utf8');
+  assert.doesNotMatch(content, /Waiting for earlier prompts to finish/);
+  assert.match(content, /Started: 1970-01-01T00:00:00.004Z/);
+});
+
 test('directory failure leaves mode off and invalid state values are rejected', t => {
   const f = fixture(t);
   writeFileSync(join(f.folder, 'docs'), 'occupied');

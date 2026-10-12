@@ -34,8 +34,23 @@ function render(kind, record, marker) {
   for (const key of ['createdAt', 'startedAt', 'finishedAt'])
     if (Number.isFinite(record[key])) text += `${label(key)}: ${new Date(record[key]).toISOString()}\n`;
   if (kind === 'discussion') {
-    for (const message of record.messages || [])
-      text += section(`${label(message.speaker)} (${message.role})`, message.text);
+    const messages = (record.messages || [])
+      .map((message, index) => ({ message, order: message.discussionMessageIndex ?? index }))
+      .sort((a, b) => a.order - b.order);
+    for (const { message } of messages) {
+      let metadata = '';
+      if (message.role === 'user' && message.submission) {
+        metadata += `Submitted with: ${message.submission === 'shift-left' ? 'Shift+Left (queue and resume dispatch)' : 'Enter (preserve queue pause)'}\n`;
+        if (Number.isFinite(message.submittedAt))
+          metadata += `Submitted: ${new Date(message.submittedAt).toISOString()}\n`;
+        if (Number.isFinite(message.startedAt)) metadata += `Started: ${new Date(message.startedAt).toISOString()}\n`;
+        else metadata += `State: ${message.queued ? 'Waiting for earlier prompts to finish' : 'Not started'}\n`;
+      }
+      text += section(
+        `${label(message.speaker)} (${message.role})`,
+        metadata ? `${metadata}\n${message.text}` : message.text,
+      );
+    }
   } else {
     text +=
       section('Assignment', record.text) + section('Response', record.result) + section('Question', record.question);

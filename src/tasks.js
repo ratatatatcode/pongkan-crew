@@ -183,7 +183,10 @@ export class TaskQueue {
         prompt +=
           '\nContinue from existing work and files. Apply the correction without blindly repeating completed changes.\n';
       if (task.answers?.length) prompt += clarificationContext(task.answers);
-      if (task.discussionId) prompt += this.crew.discussions.context(task);
+      if (task.discussionId) {
+        this.crew.discussions.begin(task);
+        prompt += this.crew.discussions.context(task);
+      }
       if (task.workflowId && task.kind !== 'plan') {
         const previous = this.crew.state.tasks.filter(
           t => t.workflowId === task.workflowId && t.status === 'completed' && t.kind !== 'plan',

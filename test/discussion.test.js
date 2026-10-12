@@ -13,6 +13,105 @@ function setup(t, runner) {
   return new Crew(folder, { runner });
 }
 
+test('messages sent during a reply stay queued until the original prompt finishes', async t => {
+  let release;
+  let started;
+  const ready = new Promise(resolve => (started = resolve));
+  const gate = new Promise(resolve => (release = resolve));
+  const prompts = [];
+  const crew = setup(t, async (args, prompt, event) => {
+    prompts.push(prompt);
+    if (prompts.length === 1) {
+      started();
+      await gate;
+    }
+    event({ type: 'item.completed', item: { type: 'agent_message', text: 'Reply received.' } });
+  });
+  t.after(() => release());
+  const discussion = crew.discussions.start('Introduce yourself', 'developer');
+  await ready;
+  const app = { crew, view: 'group', selected: 'developer', panel: { title: 'TASK QUEUE' } };
+  try {
+    execute(app, '@developer What did you just do?');
+    assert.equal(app.panel, null);
+    assert.equal(crew.discussions.current, discussion);
+    assert.equal(discussion.messages.at(-1).text, 'What did you just do?');
+    assert.doesNotMatch(
+      screen(crew, 'developer', '', app.notice, 110, 32, 0, null, { view: 'group' }),
+      /What did you just do/,
+    );
+  } finally {
+    release();
+  }
+  await crew.queue.settled(discussion.taskIds.at(-1));
+  assert.equal(prompts.length, 2);
+  assert.match(prompts[1], /What did you just do/);
+  assert.equal(discussion.status, 'completed');
+  const visible = screen(crew, 'developer', '', '', 110, 60, 0, null, { view: 'group' });
+  assert.ok(visible.indexOf('Reply received.') < visible.indexOf('What did you just do?'));
+});
+
+test('all original crew turns finish before a queued prompt reaches any teammate', async t => {
+  let release;
+  let started;
+  const ready = new Promise(resolve => (started = resolve));
+  const gate = new Promise(resolve => (release = resolve));
+  const prompts = [];
+  const crew = setup(t, async (args, prompt, event) => {
+    prompts.push(prompt);
+    if (prompts.length === 1) {
+      started();
+      await gate;
+    }
+    event({ type: 'item.completed', item: { type: 'agent_message', text: `Original reply ${prompts.length}` } });
+  });
+  t.after(() => release());
+  const discussion = crew.discussions.start('Introduce everyone');
+  const originalCount = discussion.taskIds.length;
+  await ready;
+  crew.discussions.start('SECOND PROMPT');
+  release();
+  await crew.queue.settled(discussion.taskIds.at(-1));
+  assert.ok(prompts.slice(0, originalCount).every(prompt => !prompt.includes('SECOND PROMPT')));
+  assert.ok(prompts.slice(originalCount).every(prompt => prompt.includes('SECOND PROMPT')));
+  assert.equal(discussion.messages.filter(message => message.role === 'assistant').length, prompts.length);
+});
+
+test('queued follow-ups cannot change the prompt for unfinished earlier turns', t => {
+  const crew = setup(t);
+  crew.queue.pause();
+  const discussion = crew.discussions.start('Introduce yourselves');
+  const original = [...discussion.taskIds];
+  crew.discussions.start('Tell me what you just did');
+  for (const id of original) {
+    const context = crew.discussions.context(crew.queue.get(id));
+    assert.match(context, /Introduce yourselves/);
+    assert.doesNotMatch(context, /Tell me what you just did/);
+  }
+  const followup = crew.queue.get(discussion.taskIds.at(-1));
+  assert.match(crew.discussions.context(followup), /Tell me what you just did/);
+  crew.discussions.start('A third separate question');
+  assert.doesNotMatch(crew.discussions.context(followup), /A third separate question/);
+});
+
+test('plain follow-ups in a paused discussion are saved and queue read-only responses', t => {
+  const crew = setup(t);
+  crew.queue.pause();
+  const discussion = crew.discussions.start('Introduce yourselves');
+  const previous = discussion.taskIds.at(-1);
+  const count = discussion.taskIds.length;
+  const app = { crew, view: 'group', selected: 'developer', panel: { title: 'TASK QUEUE' } };
+  execute(app, 'What did you just do?');
+  assert.equal(app.panel, null);
+  assert.match(app.notice, /Message saved.*resume/);
+  assert.equal(discussion.messages.at(-1).text, 'What did you just do?');
+  assert.equal(new Crew(crew.folder).discussions.current.messages.at(-1).text, 'What did you just do?');
+  const tasks = discussion.taskIds.slice(count).map(id => crew.queue.get(id));
+  assert.equal(tasks.length, crew.state.members.length + 1);
+  assert.equal(tasks[0].dependsOn, previous);
+  assert.ok(tasks.every(task => task.readOnly && task.status === 'queued'));
+});
+
 test('chat hides redundant self labels while preserving references and saved replies', async t => {
   const crew = setup(t, async (args, prompt, event) => {
     event({

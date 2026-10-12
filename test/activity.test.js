@@ -4,6 +4,18 @@ import { describeCodexEvent } from '../src/activity.js';
 import { screen, clean } from '../src/ui.js';
 import { cellWidth } from '../src/markdown.js';
 
+test('shortened activity text reports how many characters are hidden', () => {
+  const event = output =>
+    describeCodexEvent({
+      type: 'item.completed',
+      item: { type: 'command_execution', command: 'x'.repeat(507), aggregated_output: output, exit_code: 0 },
+    });
+  assert.equal(event('a'.repeat(3550)).detail, 'a'.repeat(1200) + '\n[2,350 more characters]');
+  assert.match(event('').text, /\[7 more characters\]$/);
+  assert.equal(event('a'.repeat(1200)).detail, 'a'.repeat(1200));
+  assert.equal(event('short output').detail, 'short output');
+});
+
 test('Codex events report real command lifecycle, bounded output, searches and file changes', () => {
   const start = describeCodexEvent({
     type: 'item.started',
