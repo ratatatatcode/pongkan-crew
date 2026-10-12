@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { Crew } from '../src/crew.js';
+import { Crew } from './helpers/crew-fixture.js';
 import { execute } from '../src/commands.js';
 import { screen } from '../src/ui.js';
 import { completions } from '../src/controls.js';
@@ -13,7 +13,7 @@ import { validateState } from '../src/state.js';
 function setup(t) {
   const folder = mkdtempSync(join(tmpdir(), 'pongkan-share-'));
   const prompts = [];
-  const crew = new Crew(folder, {
+  const crew = new Crew(t, folder, {
     runner: async (args, prompt, event) => {
       prompts.push({ args, prompt });
       event({
@@ -69,7 +69,7 @@ test('explicit share creates a persistent read-only duo with only the selected l
   const output = screen(app.crew, app.selected, '', '', 140, 100, 0, null, { view: 'group' });
   assert.match(output, /Review keyboard support/);
   assert.match(output, /Shared review findings/);
-  const restored = new Crew(app.crew.folder);
+  const restored = new Crew(t, app.crew.folder);
   assert.deepEqual(restored.discussions.current.participants, ['developer', 'reviewer']);
   await restored.close();
   execute(app, 'Check focus too');
@@ -81,7 +81,8 @@ test('explicit share creates a persistent read-only duo with only the selected l
 test('only explicit sharing phrases route private context and named chats control the source', async t => {
   const app = setup(t);
   execute(app, 'Reviewer might help with this');
-  assert.equal(app.sent.length, 1);
+  assert.equal(app.crew.state.tasks.at(-1).member, 'developer');
+  assert.equal(app.crew.state.tasks.at(-1).readOnly, true);
   assert.equal(app.crew.state.discussions.length, 0);
   execute(app, '/conversation new developer Current design');
   app.crew

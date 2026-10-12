@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { Crew } from '../src/crew.js';
 import { displayMessages } from '../src/conversations.js';
 import { PERSONALITIES, personalityInstruction } from '../src/personality.js';
+import { execute } from '../src/commands.js';
 
 test('every personality guides plain language while preserving the assigned role', () => {
   for (const style of [...Object.keys(PERSONALITIES), undefined, 'unknown']) {
@@ -15,6 +16,25 @@ test('every personality guides plain language while preserving the assigned role
     assert.match(instruction, /user asks for technical detail/);
     assert.match(instruction, /role, assigned work/);
   }
+});
+
+test('every personality delivers arbitrary wording directly with the same writer permissions', async t => {
+  const calls = [];
+  const crew = setup(t, async (args, prompt, event) => {
+    calls.push({ args, prompt });
+    event({ type: 'item.completed', item: { type: 'agent_message', text: 'Handled the request.' } });
+  });
+  for (const style of Object.keys(PERSONALITIES)) {
+    crew.member('developer').personality = style;
+    const task = await execute({ crew, view: 'group', selected: 'developer' }, '@developer Okay.');
+    await crew.queue.settled(task.id);
+    assert.equal(task.status, 'completed');
+    assert.equal(calls.length, Object.keys(PERSONALITIES).indexOf(style) + 1);
+    assert.ok(calls.at(-1).args.includes('workspace-write'));
+    assert.doesNotMatch(calls.at(-1).prompt, /PONGKAN_ROUTE|CASUAL CONVERSATION/);
+    assert.match(calls.at(-1).prompt, /This changes only your wording and tone/);
+  }
+  assert.equal(crew.state.workflows.length, 0);
 });
 
 test('plain language reaches direct and Crew Chat turns without forcing discussion handoff reports', async t => {
@@ -93,23 +113,21 @@ test('legacy clarification history is readable and blocker text remains visible'
     ['Build', 'Question: Color?', 'Answer: Blue', 'Blocked: Access denied'],
   );
 });
-test('a standalone greeting is read-only, requests a brief reply and cannot become a blocking clarification', async t => {
+test('a short acknowledgement retains the recipient permissions without keyword overrides', async t => {
   let argsSeen, promptSeen;
   const crew = setup(t, async (args, prompt, event) => {
     argsSeen = args;
     promptSeen = prompt;
     event({
       type: 'item.completed',
-      item: { type: 'agent_message', text: 'Hello!\nPONGKAN_QUESTION: What shall we do?' },
+      item: { type: 'agent_message', text: 'Continuing the agreed work.' },
     });
   });
-  const task = crew.queue.enqueue('developer', 'Hello!');
+  const task = crew.queue.enqueue('developer', 'Okay!');
   await new Promise(resolve => setTimeout(resolve, 30));
   assert.equal(task.status, 'completed');
-  assert.ok(argsSeen.includes('read-only'));
-  assert.match(promptSeen, /brief, natural reply/);
-  assert.match(promptSeen, /Do not emit PONGKAN_QUESTION/);
-  assert.doesNotMatch(promptSeen, /Handoff format:/);
+  assert.ok(argsSeen.includes('workspace-write'));
+  assert.doesNotMatch(promptSeen, /CASUAL CONVERSATION|No project work is requested/);
 });
 test('a greeting containing real work still permits task questions and writer access', async t => {
   let argsSeen;

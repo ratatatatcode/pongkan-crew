@@ -33,3 +33,29 @@ export function crewContext(crew, kind, records, budget = 24000) {
   crew.state.contextStats[kind] = result.stats;
   return result.text;
 }
+
+// Prompt-only scope: persisted history and Markdown exports remain complete.
+export function recentContext(records, { count = 10, budget = 14000, perRecord = 2400 } = {}) {
+  const chosen = [];
+  let used = 0;
+  for (const record of records.slice(-count).reverse()) {
+    const original = String(record.text || '');
+    const limit = Math.min(perRecord, budget - used - record.label.length - 10);
+    if (limit < 120) break;
+    const marker = '\n[Middle omitted; full text is in saved history.]\n';
+    const text =
+      original.length <= limit
+        ? original
+        : original.slice(0, Math.floor((limit - marker.length) / 2)) +
+          marker +
+          original.slice(-Math.ceil((limit - marker.length) / 2));
+    const rendered = `${record.label}: ${text}`;
+    chosen.unshift(rendered);
+    used += rendered.length + 2;
+  }
+  return (
+    (chosen.length < records.length
+      ? '[Recent relevant records only; older records remain in saved history. Do not infer missing facts.]\n'
+      : '') + chosen.join('\n\n')
+  );
+}

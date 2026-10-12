@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Crew } from '../src/crew.js';
+import { Crew } from './helpers/crew-fixture.js';
 import { execute } from '../src/commands.js';
 import { screen } from '../src/ui.js';
 import { validateState } from '../src/state.js';
@@ -11,7 +11,7 @@ import { validateState } from '../src/state.js';
 function setup(t, runner) {
   const folder = mkdtempSync(join(tmpdir(), 'pongkan-discuss-'));
   t.after(() => rmSync(folder, { recursive: true, force: true }));
-  return new Crew(folder, { runner });
+  return new Crew(t, folder, { runner });
 }
 
 test('saved discussion lineage and workflow display fields reject malformed values', t => {
@@ -49,7 +49,7 @@ test('Crew Chat knows completed workflow results across follow-ups and restart, 
   execute({ crew, view: 'group', selected: 'developer' }, '/crew-task');
   const flow = crew.state.workflows.at(-1);
   await crew.workflows.settled(flow.id);
-  const restored = new Crew(crew.folder, { runner });
+  const restored = new Crew(t, crew.folder, { runner });
   for (const question of ['What did you just do?', 'What remains?']) {
     const discussion = restored.discussions.start(question, 'developer');
     await restored.queue.settled(discussion.taskIds.at(-1));
@@ -150,17 +150,20 @@ test('queued follow-ups cannot change the prompt for unfinished earlier turns', 
 test('plain follow-ups in a paused discussion are saved and queue read-only responses', t => {
   const crew = setup(t);
   crew.queue.pause();
+  crew.queue.drain = () => {};
   const discussion = crew.discussions.start('Introduce yourselves');
   const previous = discussion.taskIds.at(-1);
   const count = discussion.taskIds.length;
   const app = { crew, view: 'group', selected: 'developer', panel: { title: 'TASK QUEUE' } };
   execute(app, 'What did you just do?');
   assert.equal(app.panel, null);
-  assert.match(app.notice, /Message saved.*resume/);
+  assert.equal(crew.queue.paused, false);
+  assert.match(app.notice, /queued|discussion/i);
   assert.equal(discussion.messages.at(-1).text, 'What did you just do?');
-  assert.equal(new Crew(crew.folder).discussions.current.messages.at(-1).text, 'What did you just do?');
+  assert.equal(new Crew(t, crew.folder).discussions.current.messages.at(-1).text, 'What did you just do?');
   const tasks = discussion.taskIds.slice(count).map(id => crew.queue.get(id));
-  assert.equal(tasks.length, crew.state.members.length + 1);
+  assert.equal(tasks.length, 1);
+  assert.equal(tasks[0].member, crew.leadName);
   assert.equal(tasks[0].dependsOn, previous);
   assert.ok(tasks.every(task => task.readOnly && task.status === 'queued'));
 });
@@ -193,7 +196,7 @@ test('ordinary Crew Chat follow-ups retain prior findings across restart', async
   const crew = setup(t, runner);
   const first = crew.discussions.start('Suggest a navigation layout', 'developer');
   await crew.queue.settled(first.taskIds.at(-1));
-  const restored = new Crew(crew.folder, { runner });
+  const restored = new Crew(t, crew.folder, { runner });
   const app = { crew: restored, selected: 'developer', view: 'group' };
   execute(app, 'What are the tradeoffs?');
   await restored.queue.settled(restored.discussions.current.taskIds.at(-1));
@@ -226,7 +229,9 @@ test('Crew Chat task commands include history and execution cannot interrupt a d
   crew.queue.pause();
   const discussion = crew.discussions.start('Implement orange navigation', 'developer');
   const app = { crew, selected: 'developer', view: 'group' };
-  assert.throws(() => execute(app, 'Proceed with that'), /discussion is active/);
+  crew.queue.drain = () => {};
+  execute(app, 'Proceed with that');
+  assert.equal(discussion.pendingExecution, 'Proceed with that');
   assert.equal(crew.state.workflows.length, 0);
   crew.discussions.stop();
   discussion.messages.push({ role: 'assistant', speaker: 'developer', text: 'Preserve keyboard navigation.' });
@@ -237,6 +242,7 @@ test('Crew Chat task commands include history and execution cannot interrupt a d
 test('new in Crew Chat opens a blank conversation without clearing individual chats', async t => {
   const crew = setup(t, async () => {});
   crew.queue.pause();
+  crew.queue.drain = () => {};
   const first = crew.discussions.start('Old proposal', 'developer');
   const app = { crew, selected: 'developer', view: 'group' };
   assert.throws(() => execute(app, '/new'), /discussion is active/);
@@ -255,7 +261,7 @@ test('new in Crew Chat opens a blank conversation without clearing individual ch
     ['New topic'],
   );
   assert.deepEqual(
-    new Crew(crew.folder).discussions.current.messages.map(m => m.text),
+    new Crew(t, crew.folder).discussions.current.messages.map(m => m.text),
     ['New topic'],
   );
 });
@@ -305,7 +311,7 @@ test('discussion takes two bounded rounds, shares replies, summarizes and persis
   assert.match(prompts.at(-1), /agreements, disagreements/);
   assert.equal(discussion.status, 'completed');
   assert.equal(discussion.messages.length, 10);
-  const restored = new Crew(crew.folder);
+  const restored = new Crew(t, crew.folder);
   assert.equal(restored.state.discussions[0].messages.at(-1).text, 'reply-9');
 });
 test('mentions open shared chat and route a read-only reply; unknown mentions leave state intact', async t => {
@@ -329,7 +335,7 @@ test('stopping and restarting discussions never dispatches dependent turns', asy
   assert.equal(discussion.status, 'cancelled');
   assert.ok(discussion.taskIds.every(id => crew.queue.get(id).status === 'cancelled'));
   const next = crew.discussions.start('Another topic');
-  const restored = new Crew(crew.folder);
+  const restored = new Crew(t, crew.folder);
   assert.equal(restored.state.discussions.at(-1).status, 'interrupted');
   assert.ok(next.taskIds.every(id => restored.queue.get(id).status === 'interrupted'));
 });
@@ -399,7 +405,7 @@ test('group replies use separate sessions without changing the direct conversati
   assert.match(direct, /MY_DIRECT_ANSWER/);
   assert.doesNotMatch(direct, /GROUP_ONLY_REPLY/);
   assert.match(screen(crew, 'developer', '', '', 120, 60, 0, null, { view: 'group' }), /GROUP_ONLY_REPLY/);
-  assert.equal(new Crew(crew.folder).member('developer').threadId, 'direct-session');
+  assert.equal(new Crew(t, crew.folder).member('developer').threadId, 'direct-session');
 });
 test('old mixed group history is retained but hidden and excluded from recovered direct context', async t => {
   const crew = setup(t);
@@ -421,7 +427,7 @@ test('old mixed group history is retained but hidden and excluded from recovered
   );
   crew.save();
   let directPrompt;
-  const restored = new Crew(crew.folder, {
+  const restored = new Crew(t, crew.folder, {
     runner: async (args, prompt) => {
       directPrompt = prompt;
       assert.ok(!args.includes('old-mixed-session'));

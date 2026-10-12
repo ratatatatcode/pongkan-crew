@@ -4,6 +4,7 @@ import { activityStyle } from './activity.js';
 import { displayMessages } from './conversations.js';
 import { roleRows, isRoleHeading } from './role-display.js';
 import { workflowFeed } from './workflow-feed.js';
+import { inputStatus } from './input-router.js';
 export { clean } from './markdown.js';
 const wrap = wrapText;
 const nameLabel = name => name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
@@ -13,7 +14,7 @@ const CLI_TIPS = [
   '/new starts a fresh chat and keeps the old conversation saved.',
   '/new-all starts fresh conversations for the whole crew.',
   '/personality lists chat styles; tone never changes a teammate’s role.',
-  'Use /crew-task to turn a Crew Chat discussion into coordinated work.',
+  'Type your request normally; the teammate AI interprets it. /crew-task starts coordinated work.',
   'F2 switches between Chat, Crew Chat, and Activity.',
   'Shift+Enter inserts a new line; Enter sends the complete prompt.',
   'Up/Down browses prompt history and restores your current draft.',
@@ -75,6 +76,7 @@ export function screen(
   panel = null,
   { color = false, view = 'chat', activityScroll = 0, inputCursor = Array.from(input).length, composer = null } = {},
 ) {
+  if (crew.codeChanged) notice = `Crew code changed on disk. Restart to load the update. ${notice || ''}`;
   const width = Math.max(30, columns - 1);
   composer ||= layoutInput(
     input,
@@ -140,38 +142,73 @@ export function screen(
       : discussion?.status === 'working' && !active
         ? 'waiting'
         : discussion?.status;
-    content = discussion
-      ? [
-          row(`CREW CHAT · ${discussionStatus}`, 'heading'),
-          ...(discussion.participants
-            ? wrap(`Participants: ${discussion.participants.map(nameLabel).join(', ')}`, readingWidth).map(text =>
-                row(text, 'muted'),
-              )
-            : []),
+    const timeline = [];
+    let promptTime = discussion?.createdAt || 0;
+    // Keep replies with their prompt, then place workflow output between turns.
+    // Appending every workflow last hides new discussion messages behind old work.
+    for (const { message: m } of (discussion?.messages || [])
+      .map((message, index) => ({ message, order: message.discussionMessageIndex ?? index }))
+      .filter(({ message }) => !message.queued || tasks.some(task => task.kind === 'direct'))
+      .sort((a, b) => a.order - b.order)) {
+      if (m.role === 'user') promptTime = m.submittedAt ?? discussion.createdAt ?? 0;
+      timeline.push({
+        at: promptTime,
+        rows: [
+          row(`${nameLabel(m.speaker)}${m.queued ? ' · queued' : ''}`, m.role),
           row(''),
-          ...discussion.messages
-            .map((message, index) => ({ message, order: message.discussionMessageIndex ?? index }))
-            .filter(({ message }) => !message.queued)
-            .sort((a, b) => a.order - b.order)
-            .flatMap(({ message: m }) => [
-              row(nameLabel(m.speaker), m.role),
-              row(''),
-              ...messageBody(m, readingWidth, crew.folder, m.speaker),
-              row(''),
-              row(''),
-            ]),
-        ]
-      : [
-          row('Start a crew discussion with /discuss TOPIC.', 'heading'),
+          ...messageBody(m, readingWidth, crew.folder, m.speaker),
           row(''),
-          row('MEET YOUR CREW', 'heading'),
-          ...wrap(
-            '/discuss Everyone in the current crew, introduce yourself, your role, skills, file access, and one example task. Do not modify files.',
-            readingWidth,
-          ).map(text => row(text)),
           row(''),
-          row('Or ask one teammate with @developer MESSAGE.', 'muted'),
-        ];
+        ],
+      });
+    }
+    for (const flow of crew.state.workflows || []) {
+      if (!flow.sourceDiscussionId && !flow.sourceConversationId) continue;
+      if (!discussion && !crew.state.activeGroupConversation) continue;
+      const rows = workflowFeed(crew, readingWidth, crew.state.activeGroupConversation, {
+        conversation: true,
+        discussionId: discussion?.id,
+        priorDiscussionIds: discussion?.priorDiscussionIds,
+        workflowId: flow.id,
+      });
+      if (rows.length) timeline.push({ at: flow.createdAt || 0, rows });
+    }
+    const inputs = (crew.state.inputs || []).filter(
+      input => input.view === 'group' && input.conversationId === (crew.state.activeGroupConversation || null),
+    );
+    for (const input of inputs.filter(input => !input.discussionId))
+      timeline.push({
+        at: input.createdAt,
+        rows: [
+          row(''),
+          row('You', 'user'),
+          ...renderMarkdown(input.text, readingWidth, { folder: crew.folder }),
+          ...wrap(inputStatus(crew, input), readingWidth).map(text => row(text, 'muted')),
+        ],
+      });
+    content =
+      discussion || timeline.length
+        ? [
+            row(`CREW CHAT · ${discussionStatus || 'workflow'}`, 'heading'),
+            ...(discussion?.participants
+              ? wrap(`Participants: ${discussion.participants.map(nameLabel).join(', ')}`, readingWidth).map(text =>
+                  row(text, 'muted'),
+                )
+              : []),
+            row(''),
+            ...timeline.sort((a, b) => a.at - b.at).flatMap(entry => entry.rows),
+          ]
+        : [
+            row('Start a crew discussion with /discuss TOPIC.', 'heading'),
+            row(''),
+            row('MEET YOUR CREW', 'heading'),
+            ...wrap(
+              '/discuss Everyone in the current crew, introduce yourself, your role, skills, file access, and one example task. Do not modify files.',
+              readingWidth,
+            ).map(text => row(text)),
+            row(''),
+            row('Or ask one teammate with @developer MESSAGE.', 'muted'),
+          ];
     if (discussion?.status === 'working') {
       const queuedPrompts = discussion.messages.filter(message => message.queued).length;
       if (queuedPrompts)
@@ -192,15 +229,42 @@ export function screen(
       if (discussion.status === 'interrupted')
         content.push(row('App restarted. Start again with /discuss TOPIC.', 'muted'));
     }
+    if (discussion?.pendingExecution)
+      content.push(
+        row(''),
+        row('You · queued execution', 'user'),
+        ...renderMarkdown(discussion.pendingExecution, readingWidth, { folder: crew.folder }),
+        row('Your execution request will start after this discussion finishes.', 'muted'),
+      );
+    for (const task of crew.state.tasks || []) {
+      const flow = (crew.discussions?.associatedWorkflows() || []).find(flow => flow.id === task.workflowId);
+      if (!flow) continue;
+      for (const correction of (task.steering || []).filter(entry => !entry.appliedAt))
+        content.push(
+          row(''),
+          row(`You · queued correction for ${nameLabel(task.member)}`, 'user'),
+          ...renderMarkdown(correction.text, readingWidth, { folder: crew.folder }),
+          row('Waiting for the next task boundary; the current turn continues.', 'muted'),
+        );
+    }
   }
-  if (view === 'group' && (crew.state.activeGroupConversation || crew.discussions?.current)) {
-    content.push(
-      ...workflowFeed(crew, readingWidth, crew.state.activeGroupConversation, {
-        conversation: true,
-        discussionId: crew.discussions?.current?.id,
-        priorDiscussionIds: crew.discussions?.current?.priorDiscussionIds,
-      }),
+  if (view === 'group' || view === 'chat') {
+    const latest = (crew.state.inputs || []).findLast(
+      input =>
+        input.view === view &&
+        input.conversationId ===
+          (view === 'group'
+            ? crew.state.activeGroupConversation || null
+            : crew.state.activeConversations[selected] || null) &&
+        (view === 'group' || input.selected === selected),
     );
+    if (latest)
+      content.push(
+        row(''),
+        ...wrap(`Status · ${inputStatus(crew, latest)}`, readingWidth).map(text => row(text, 'muted')),
+      );
+    if (latest && view === 'chat' && ['queued', 'routing', 'blocked', 'interrupted'].includes(latest.status))
+      content.push(...renderMarkdown(latest.text, readingWidth, { folder: crew.folder }));
   }
   if (view === 'activity') {
     const events = crew.activityEvents?.length ? crew.activityEvents : crew.activity.map(text => ({ text }));

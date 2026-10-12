@@ -1,3 +1,4 @@
+import { renderMarkdown } from './markdown.js';
 import { commandExamples } from './command-examples.js';
 import { ROLES, roleMember } from './roles.js';
 import { presetListRows } from './preset-display.js';
@@ -7,7 +8,8 @@ import { readModelCatalog, readModelDefaults, modelLabel, validateModelChoice, m
 import { steer } from './steering.js';
 import { PERSONALITIES } from './personality.js';
 export const HELP = [
-  'Enter one command at a time. UPPERCASE = replace with a value; [VALUE] = optional.',
+  'Type normally and press Enter: the recipient AI interprets your full request.',
+  'Slash commands are optional overrides. UPPERCASE = replace with a value; [VALUE] = optional.',
   'Names below use the default crew; /crew list shows your actual names.',
   'Model IDs are examples; use /model list to check your installed catalog.',
   'You can search descriptions and examples with /help QUERY.',
@@ -45,7 +47,7 @@ export const HELP = [
   '/discuss TOPIC                Two read-only crew rounds and lead summary',
   '/group                       Open shared Crew Chat',
   '/share NAME [REQUEST]        Share latest private exchange in a duo Crew Chat',
-  '@NAME MESSAGE                Read-only reply with shared chat context',
+  '@NAME MESSAGE                Send directly to a teammate with their configured access',
   '/chat [NAME]                  Return to chat, optionally select teammate',
   '/next /prev                   Cycle teammates and Crew Chat',
   '/task TEXT                    Lead plans, dispatches, reviews, summarizes',
@@ -83,6 +85,7 @@ export const HELP = [
   '/workflow list                List coordinated workflows',
   '/workflow show ID             Show plan, steps and summary',
   '/workflow cancel ID           Cancel workflow and dependent steps',
+  '/workflow resume ID           Continue unfinished steps; keep completed work',
   '/workflow retry ID            Restart complete workflow; may repeat edits',
   '',
   'CONVERSATION AND VIEWS',
@@ -117,7 +120,7 @@ export const HELP = [
   'F2 / Shift+F2                 Next / previous tab (Chat, Crew Chat, Activity)',
   'Esc                           Close panel / return to chat / clear input',
   'Tab on /command               Complete command or teammate name',
-  'Shift+Left                   Queue prompt; resume paused dispatch',
+  'Shift+Left                   Submit prompt; resume this conversation only',
   'Shift+Enter                  Insert a new line without sending',
   'Tab / Shift+Tab               Cycle teammates and Crew Chat',
   'Up / Down                     Move input lines; history beyond first/last line',
@@ -138,8 +141,8 @@ export const HELP = [
   'One writer per workspace. Isolated worktrees can run in parallel.',
   'Stop a teammate before removing, renaming or reconfiguring it.',
   'Remove/clear/new archive local history. /undo restores the latest change.',
-  'Saved queued work starts paused after restart. /queue resume continues it.',
-  'Interrupted workflows require explicit /workflow retry ID.',
+  'Saved work starts paused after restart. /queue resume resumes queued work.',
+  'Plain messages go directly to the recipient. /workflow retry ID restarts the complete workflow.',
   'The lead validates at most twelve sequential assignments, then review and summary.',
   'Completed workflow means execution finished; inspect review for defects.',
 ].flatMap(commandExamples);
@@ -166,9 +169,12 @@ export function cycle(app, direction) {
 export function queuePrompt(app, text) {
   const line = text.trim();
   if (!line) return;
-  execute(app, line, { submission: 'shift-left' });
-  if (app.crew.queue.paused) app.crew.queue.resume();
-  app.notice = 'Message queued; dispatch active. Current turns continue.';
+  const result = execute(app, line, { submission: 'shift-left' });
+  const finish = () => {
+    app.notice = `${app.notice || 'Message queued.'} Current turns continue.`;
+  };
+  if (result?.then) return result.then(finish);
+  finish();
 }
 
 export function execute(app, line, { submission = 'enter' } = {}) {
@@ -181,6 +187,18 @@ export function execute(app, line, { submission = 'enter' } = {}) {
       lines: typeof lines === 'function' ? lines() : lines,
       getLines: typeof lines === 'function' ? lines : null,
       offset: 0,
+    };
+  };
+  const markdownPanel = (title, lines) => {
+    panel(title, lines);
+    const current = app.panel;
+    let cached;
+    current.getRows = width => {
+      const text = (current.getLines ? current.getLines() : current.lines).join('\n\n');
+      if (cached?.text === text && cached.width === width) return cached.rows;
+      const rows = renderMarkdown(text, width, { folder: crew.folder });
+      cached = { text, width, rows };
+      return rows;
     };
   };
   const load = (title, promise) => {
@@ -205,52 +223,13 @@ export function execute(app, line, { submission = 'enter' } = {}) {
     return;
   }
   if (!line.startsWith('/')) {
-    const sharing =
-      app.view === 'chat' &&
-      line.trim().match(/^(?:please\s+)?share this with ([a-z][a-z0-9-]*)(?:\s+([\s\S]+))?[.!]*$/i);
-    if (sharing) {
-      crew.discussions.share(app.selected, sharing[1].toLowerCase(), sharing[2], { submission });
-      app.view = 'group';
-      app.panel = null;
-      app.notice = 'Latest private exchange shared; replies appear in this Crew Chat.';
-      return;
+    const mention = line.match(/^@([a-z][a-z0-9-]*)(?:[,:]?\s+)([\s\S]+)$/i);
+    if (mention) {
+      const target = mention[1].toLowerCase();
+      crew.member(target);
+      return crew.inputs.submit(app, mention[2], { submission, target });
     }
-    const mention = line.match(/^@([a-z][a-z0-9-]*)(?:[,:]?\s+)([\s\S]+)$/);
-    if (
-      !mention &&
-      app.view === 'group' &&
-      crew.discussions.current &&
-      /^(?:please\s+)?(?:proceed|go ahead|implement|execute)(?:\s+(?:with\s+)?(?:that|this|it|the plan|the agreed plan|the suggestions))?[.!]*$/i.test(
-        line.trim(),
-      )
-    ) {
-      const flow = crew.workflows.start(crew.discussions.executionGoal(line), {
-        sourceConversationId: crew.state.activeGroupConversation,
-        sourceDiscussionId: crew.discussions.current.id,
-      });
-      app.view = 'group';
-      app.scroll = 0;
-      app.panel = null;
-      app.notice = `Workflow ${flow.id} created from Crew Chat${crew.queue.paused ? '; /queue resume to start' : ''}.`;
-      return;
-    }
-    if (mention || app.view === 'group') {
-      const continuing = crew.discussions.current?.status === 'working';
-      crew.discussions.start(mention ? mention[2] : line, mention?.[1], { submission });
-      app.view = 'group';
-      app.panel = null;
-      app.notice = crew.queue.paused
-        ? 'Message saved; /queue resume to continue.'
-        : continuing
-          ? 'Prompt queued; waiting for the entire current discussion to finish.'
-          : 'Discussion started.';
-      return;
-    }
-    if (app.view === 'activity')
-      throw new Error('Activity is a command view. Use /chat to send a message, or /send NAME TEXT.');
-    app.panel = null;
-    app.send(app.selected, line);
-    return;
+    if (!mention) return crew.inputs.submit(app, line, { submission });
   }
   const [command, ...parts] = line.trim().split(/\s+/);
   const text = line.trim().slice(command.length).trim();
@@ -532,7 +511,10 @@ export function execute(app, line, { submission = 'enter' } = {}) {
       app.notice ||= `${name} updated.`;
     } else throw new Error('Use /crew list|add|remove|rename|role|access|info|chat. See /help.');
   } else if (command === '/stop') {
-    if (!parts[0] && app.view === 'group') {
+    if (parts.length > 1) throw new Error('Use /stop [NAME|all].');
+    if (parts[0] && parts[0] !== 'all') crew.member(parts[0]);
+    crew.inputs?.cancel(app, { all: parts[0] === 'all', member: parts[0] && parts[0] !== 'all' ? parts[0] : null });
+    if (!parts[0] && ['group', 'activity'].includes(app.view)) {
       const workflows = crew.discussions.associatedWorkflows().filter(flow => !TERMINAL.has(flow.status));
       crew.discussions.stop();
       for (const flow of workflows) crew.workflows.cancel(flow.id);
@@ -834,7 +816,7 @@ export function execute(app, line, { submission = 'enter' } = {}) {
       ]);
     else if (action === 'show') {
       crew.queue.get(id);
-      panel(`TASK ${id}`, () => {
+      markdownPanel(`TASK ${id}`, () => {
         const task = crew.queue.get(id);
         return [
           `${task.status} -> ${task.member}`,
@@ -872,7 +854,7 @@ export function execute(app, line, { submission = 'enter' } = {}) {
       );
     else if (action === 'show') {
       crew.workflows.get(id);
-      panel(`WORKFLOW ${id}`, () => {
+      markdownPanel(`WORKFLOW ${id}`, () => {
         const flow = crew.workflows.get(id);
         return [
           `Status: ${flow.status}`,
@@ -898,14 +880,19 @@ export function execute(app, line, { submission = 'enter' } = {}) {
         ];
       });
     } else if (action === 'cancel') crew.workflows.cancel(id);
-    else if (action === 'retry') {
+    else if (action === 'resume') {
+      if (parts.length !== 2) throw new Error('Use /workflow resume WORKFLOW_ID.');
+      const flow = crew.workflows.resume(id);
+      crew.queue.resumeScope(task => task.workflowId === flow.id);
+      app.notice = `Workflow ${flow.id} resumed; completed steps are preserved.`;
+    } else if (action === 'retry') {
       const result = crew.workflows.retry(id);
       const show = flow => {
         app.notice = `Workflow ${flow.id} created. Retry may repeat earlier edits.`;
       };
       if (result?.then) return result.then(show);
       show(result);
-    } else throw new Error('Use /workflow list|show|cancel|retry.');
+    } else throw new Error('Use /workflow list|show|cancel|resume|retry.');
   } else if (command === '/diff') {
     if (parts[0] === 'git' || (!parts[0] && !crew.state.lastDiff))
       return load(

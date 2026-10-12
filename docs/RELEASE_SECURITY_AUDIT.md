@@ -1,5 +1,7 @@
 # Open-source release security audit
 
+> Historical snapshot: the findings below apply to the dated review and source snapshot, not the current working tree. Later changes include development dependencies and CI. Consult [CONTRIBUTING.md](../CONTRIBUTING.md) for current checks and [SECURITY.md](../SECURITY.md) for current boundaries. This documentation update does not constitute a new security audit.
+
 Reviewed on 2026-10-11 against local HEAD `951ea57` and the current working tree, including the pending preset/help/security changes. This review did not publish, push, rewrite history, change GitHub settings, or inspect the ignored local conversation database.
 
 ## Outcome

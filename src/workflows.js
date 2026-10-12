@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { TERMINAL } from './tasks.js';
+import { VERIFICATION_SCHEMA, verificationResult } from './verification.js';
+import { structuredOutput } from './structured-output.js';
 export const MAX_PLAN_STEPS = 12;
 
 export function validatePlan(plan, members, leadName = 'chief', reviewerName = null) {
@@ -74,6 +76,9 @@ export class Workflows {
       reviewer: reviewerName,
       status: 'planning',
       createdAt: Date.now(),
+      requiresWrite: !!options.requiresWrite,
+      requestGoal: options.requestGoal || text,
+      sourceInputId: options.sourceInputId || null,
       sourceConversationId: options.sourceConversationId || null,
       sourceDiscussionId: options.sourceDiscussionId || null,
       workspace: options.workspace || null,
@@ -91,6 +96,11 @@ export class Workflows {
         }).id;
     }
     crew.state.workflows.push(flow);
+    const input = crew.state.inputs?.find(input => input.id === flow.sourceInputId);
+    if (input) {
+      input.workflowId = flow.id;
+      input.status = 'dispatched';
+    }
     const roster = crew.state.members.map(m => ({ name: m.name, role: m.role, access: m.writable ? 'write' : 'read' }));
     const schema = {
       type: 'object',
@@ -123,7 +133,7 @@ export class Workflows {
         'Return ONLY JSON: {"steps":[{"member":"name","task":"specific task"}],"reviewer":"read-only member name"}. ' +
         `Use 1-${MAX_PLAN_STEPS} sequential steps, never assign a step to ${leadName}. Select ${reviewerName || 'an existing read-only teammate'} as reviewer. ` +
         'Choose only relevant specialists, establish dependencies and interface contracts first, include verification and handoffs, and avoid assigning duplicate ownership. ' +
-        'Respect access: implementation needs a writer. Do not edit files, run tools, delegate, or execute the plan yourself.',
+        `Respect access: implementation needs a writer.${flow.requiresWrite ? ' This request requires a file edit: include at least one writable implementer; a read-only inspection does not fulfill it.' : ''} Do not edit files, run tools, delegate, or execute the plan yourself.`,
       { workflowId: flow.id, kind: 'plan', readOnly: true, schema, conversationId: flow.conversations[leadName] },
     );
     return flow;
@@ -158,18 +168,15 @@ export class Workflows {
     if (task.kind === 'plan') {
       let parsed;
       try {
-        parsed = JSON.parse(
-          (task.result || '')
-            .trim()
-            .replace(/^```(?:json)?\s*/i, '')
-            .replace(/\s*```$/, ''),
-        );
+        parsed = structuredOutput(task.result, ['steps', 'reviewer']);
       } catch {
         throw new Error(
           'Lead returned invalid JSON. No workers were dispatched. Use /workflow retry ID to request a new plan.',
         );
       }
       flow.plan = validatePlan(parsed, this.crew.state.members, flow.lead || 'chief', flow.reviewer);
+      if (flow.requiresWrite && !flow.plan.steps.some(step => this.crew.member(step.member).writable))
+        throw new Error('The plan omitted a writable implementer for the requested edit. No workers were dispatched.');
       let previous = task.id;
       const converse = !!(flow.sourceDiscussionId || flow.sourceConversationId);
       const enqueueTurn = (member, text, kind, extra = {}) => {
@@ -212,7 +219,7 @@ export class Workflows {
         );
         previous = next.id;
         this.crew.notify(`${flow.lead || 'chief'} -> ${step.member}: ${step.task.slice(0, 160)}`);
-        if (converse) {
+        if (converse && step.member !== flow.plan.reviewer) {
           enqueueTurn(
             flow.plan.reviewer,
             `Execution Crew Chat: Respond directly to ${step.member}'s latest implementation of: ${step.task}\nInspect the actual work and reported checks. Give specific feedback, answer their questions, and identify any correction needed before handoff. If no correction is needed, say so. Keep it concise. Do not edit files.`,
@@ -234,12 +241,16 @@ export class Workflows {
       }
       const review = this.crew.queue.enqueue(
         flow.plan.reviewer,
-        `Review the completed work for this goal: ${flow.text}\nInspect the changes and verification. Report defects, risks, and any missing work. Do not modify files.`,
+        `Review the completed work for this goal: ${flow.text}\nInspect the changes and verification. Report defects, risks, and any missing work. Do not modify files.` +
+          (flow.requiresWrite
+            ? `\nPONGKAN_VERIFY\nCompare current source against the latest requested outcome: ${flow.requestGoal}. Inspect the source and run relevant read-only checks yourself. Enumerate the user's requirements and cite concrete source or check evidence for each. Historical reports and claims by the implementer are not independent verification. Mark missing requested changes needs_work and unavailable checks unverified. Return ONLY the verification JSON.`
+            : ''),
         {
           workflowId: flow.id,
           kind: 'review',
           readOnly: true,
           stableRead: true,
+          ...(flow.requiresWrite ? { schema: VERIFICATION_SCHEMA } : {}),
           dependsOn: previous,
           hold: true,
           deferSave: true,
@@ -260,9 +271,18 @@ export class Workflows {
         },
       );
       flow.status = 'working';
+    } else if (task.kind === 'review' && flow.requiresWrite) {
+      const report = verificationResult(task);
+      flow.outcome = report.outcome;
+      flow.criteria = report.criteria;
+      task.result = report.text;
+      task.verificationFormatted = true;
     } else if (task.kind === 'summary') {
       flow.status = 'completed';
-      flow.result = task.result;
+      flow.result = flow.requiresWrite
+        ? `Requested outcome: ${flow.outcome || 'unverified'}\n\n${task.result}`
+        : task.result;
+      if (flow.requiresWrite) task.result = flow.result;
       flow.finishedAt = Date.now();
       this.crew.notify(`Workflow ${flow.id} completed (see ${flow.lead || 'chief'}'s summary)`);
     }
@@ -288,15 +308,48 @@ export class Workflows {
   cancel(id) {
     this.fail(id, 'Cancelled by user.', 'cancelled');
   }
+  resume(id, instruction = '') {
+    const flow = this.get(id);
+    if (flow.status === 'completed') throw new Error('This workflow is complete. Describe the next change instead.');
+    const tasks = this.crew.state.tasks.filter(task => task.workflowId === id);
+    if (tasks.some(task => task.status === 'running'))
+      throw new Error('The previous turn is still stopping. Try continuing again once it has stopped.');
+    const unfinished = tasks.filter(task => task.status !== 'completed');
+    if (!unfinished.length) throw new Error('There is no unfinished work to resume.');
+    if (flow.workspace) this.crew.worktrees.verify(flow);
+    for (const task of unfinished) this.crew.member(task.member);
+    // Keep the existing dependency chain and results; never redispatch completed steps.
+    for (const task of unfinished) {
+      if (task.result && !task.schema) task.continuations = (task.continuations || 0) + 1;
+      task.status = task.question ? 'waiting' : 'queued';
+      delete task.cancelRequested;
+      delete task.error;
+      delete task.finishedAt;
+    }
+    flow.status = unfinished[0].kind === 'plan' ? 'planning' : 'working';
+    delete flow.error;
+    delete flow.finishedAt;
+    if (instruction) {
+      flow.steering ||= [];
+      flow.steering.push({ id: randomUUID().slice(0, 8), text: instruction, createdAt: Date.now() });
+    }
+    this.crew.save();
+    this.crew.queue.drain();
+    return flow;
+  }
   retry(id) {
     const flow = this.get(id);
     if (!TERMINAL.has(flow.status)) throw new Error('Cancel the workflow before retrying it.');
     return flow.workspace
       ? this.startIsolated(flow.text, {
+          requiresWrite: flow.requiresWrite,
+          requestGoal: flow.requestGoal,
           sourceConversationId: flow.sourceConversationId,
           sourceDiscussionId: flow.sourceDiscussionId,
         })
       : this.start(flow.text, {
+          requiresWrite: flow.requiresWrite,
+          requestGoal: flow.requestGoal,
           sourceConversationId: flow.sourceConversationId,
           sourceDiscussionId: flow.sourceDiscussionId,
         });

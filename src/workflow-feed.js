@@ -21,16 +21,24 @@ export function workflowFeed(
   crew,
   width,
   conversationId,
-  { before = Infinity, since = -Infinity, conversation = false, discussionId = null, priorDiscussionIds = [] } = {},
+  {
+    before = Infinity,
+    since = -Infinity,
+    conversation = false,
+    discussionId = null,
+    priorDiscussionIds = [],
+    workflowId = null,
+  } = {},
 ) {
   const discussionIds = new Set([discussionId, ...priorDiscussionIds]);
   const flows = new Map((crew.state.workflows || []).map(f => [f.id, f]));
-  const allTasks = new Map((crew.state.tasks || []).map(t => [t.id, t]));
+  const allTasks = conversation ? null : new Map((crew.state.tasks || []).map(t => [t.id, t]));
   const tasks = (crew.state.tasks || []).filter(t => {
     const flow = flows.get(t.workflowId);
     const createdAt = t.createdAt ?? flow?.createdAt ?? 0;
     return (
       flow &&
+      (!workflowId || flow.id === workflowId) &&
       (conversationId
         ? flow.sourceConversationId === conversationId
         : discussionId
@@ -44,45 +52,40 @@ export function workflowFeed(
   for (const task of conversation ? tasks : tasks.slice(-40)) {
     const flow = flows.get(task.workflowId);
     if (conversation) {
-      if (task.kind === 'plan') {
-        const goal = flow.text.split(
-          '\n\nPrior Crew Chat (historical findings; use the latest user request to determine authorized work):\n',
-        )[0];
+      // Future assignments belong in Activity, not the conversation.
+      if (task.kind !== 'plan' && task.status === 'queued' && !task.startedAt && !task.result) continue;
+      const hasOriginalRequest = (crew.state.inputs || []).some(
+        input => input.workflowId === flow.id && input.decision?.action === 'execute',
+      );
+      if (task.kind === 'plan' && !hasOriginalRequest) {
+        const goal = flow.text
+          .split(
+            '\n\nPrior Crew Chat (historical findings; use the latest user request to determine authorized work):\n',
+          )[0]
+          .split('\n\nResolved intent (must remain within the original request):')[0];
         rows.push({ text: 'You', tone: 'user' }, ...taskMarkdown(task, 'goal', goal, width, crew.folder), {
           text: '',
           tone: 'body',
         });
       }
-      if (task.kind !== 'plan') {
-        const prior = task.dependsOn && allTasks.get(task.dependsOn);
-        const assignment =
-          task.displayText ||
-          (task.kind === 'coordination'
-            ? 'Discuss the assignment with teammates.'
-            : task.kind === 'revision'
-              ? 'Address teammate feedback.'
-              : task.kind === 'review'
-                ? 'Review the completed work and verification.'
-                : task.kind === 'summary'
-                  ? 'Summarize the completed work, review findings, and unresolved issues.'
-                  : task.text
-                      .split(`\nAssignment from ${flow.lead || 'chief'}: `)
-                      .slice(1)
-                      .join(`\nAssignment from ${flow.lead || 'chief'}: `) || task.text);
+      const progress =
+        task.status === 'running'
+          ? (crew.chatMember?.(task.member, task.conversationId) || crew.member?.(task.member))?.progress
+          : null;
+      const result =
+        task.status === 'running' && progress?.taskId === task.id ? progress.response || task.result : task.result;
+      for (const correction of (task.steering || []).filter(entry => entry.appliedAt))
         rows.push(
-          ...wrapText(`${label(prior?.member || flow.lead)} → ${label(task.member)}`, width).map(text => ({
-            text,
-            tone: 'heading',
-          })),
-          ...taskMarkdown(task, 'assignment', assignment, width, crew.folder),
+          { text: `You · correction delivered to ${label(task.member)}`, tone: 'user' },
+          ...taskMarkdown(task, `correction-${correction.id}`, correction.text, width, crew.folder),
           { text: '', tone: 'body' },
         );
-      }
-      if (task.result) {
+      const rawVerification = task.kind === 'review' && task.schema && !task.verificationFormatted;
+      if (result && !rawVerification) {
         const message = displayMessages(
-          { name: task.member, messages: [{ role: 'assistant', text: task.result, taskId: task.id }] },
+          { name: task.member, messages: [{ role: 'assistant', text: result, taskId: task.id }] },
           [task],
-          [flow],
+          [],
         )[0];
         rows.push(
           { text: label(task.member), tone: 'assistant' },
@@ -90,6 +93,11 @@ export function workflowFeed(
           { text: '', tone: 'body' },
         );
       }
+      if (rawVerification && result && task.status !== 'running')
+        rows.push({
+          text: 'Verification report could not be read. Details are available in Activity.',
+          tone: 'system',
+        });
       if (task.status === 'running' || task.status === 'queued' || task.status === 'waiting') {
         const action =
           task.status === 'waiting'

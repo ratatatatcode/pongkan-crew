@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { taskSignal, isCasualMessage, clarificationContext } from './questions.js';
+import { taskSignal, clarificationContext } from './questions.js';
 import { crewContext } from './context.js';
 
 export const TERMINAL = new Set(['completed', 'failed', 'cancelled', 'interrupted']);
@@ -65,10 +65,21 @@ export class TaskQueue {
     this.crew.notify('Queue paused (active work continues)');
   }
   resume() {
+    for (const task of this.crew.state.tasks) delete task.dispatchPaused;
     this.paused = false;
     this.crew.state.queuePaused = false;
     this.crew.save();
     this.crew.notify('Queue resumed');
+    this.drain();
+  }
+  resumeScope(inScope) {
+    for (const task of this.crew.state.tasks) {
+      if (inScope(task)) delete task.dispatchPaused;
+      else if (this.paused && ['queued', 'waiting'].includes(task.status)) task.dispatchPaused = true;
+    }
+    this.paused = false;
+    this.crew.state.queuePaused = false;
+    this.crew.save();
     this.drain();
   }
   move(id, position) {
@@ -134,7 +145,11 @@ export class TaskQueue {
   drain() {
     if (this.paused || this.closing) return;
     for (const task of this.crew.state.tasks) {
-      if (task.status !== 'queued' || this.crew.running.has(this.crew.runKey(task.member, task.conversationId)))
+      if (
+        task.dispatchPaused ||
+        task.status !== 'queued' ||
+        this.crew.running.has(this.crew.runKey(task.member, task.conversationId))
+      )
         continue;
       if (
         this.crew.state.tasks.some(
@@ -153,7 +168,7 @@ export class TaskQueue {
       }
       if (task.dependsOn) {
         const prior = this.get(task.dependsOn);
-        if (prior.status !== 'completed') continue;
+        if (prior.status !== 'completed' && !(task.kind === 'direct' && TERMINAL.has(prior.status))) continue;
       }
       const member = this.crew.member(task.member);
       if (
@@ -171,6 +186,10 @@ export class TaskQueue {
   }
   async run(task) {
     try {
+      if (task.kind === 'review') {
+        task.inspections = [];
+        delete task.verificationFormatted;
+      }
       let prompt = task.text;
       const flow = task.workflowId ? this.crew.workflows.get(task.workflowId) : null;
       const sentFlowSteering = flow?.steering?.length || 0;
@@ -189,6 +208,8 @@ export class TaskQueue {
         prompt += this.crew.discussions.context(task);
       }
       if (task.workflowId && task.kind !== 'plan') {
+        if (task.kind === 'summary' && flow.requiresWrite)
+          prompt += `\nOutcome verification: ${flow.outcome || 'unverified'}. This verdict is authoritative for reporting completion. If needs_work or unverified, state that the request is not verified complete. Never turn an implementation report into independently verified evidence.\n`;
         const previous = this.crew.state.tasks.filter(
           t => t.workflowId === task.workflowId && t.status === 'completed' && t.kind !== 'plan',
         );
@@ -255,10 +276,6 @@ export class TaskQueue {
         return;
       }
       let signal = !task.schema && !task.discussionId && task.status === 'completed' ? taskSignal(result.text) : null;
-      if (signal?.kind === 'QUESTION' && !task.workflowId && !task.answers?.length && isCasualMessage(task.text)) {
-        // A conversational greeting is complete; it cannot hold the queue waiting.
-        signal = null;
-      }
       if (signal?.kind === 'QUESTION' && this.crew.state.questionsEnabled !== false) {
         task.status = 'waiting';
         task.question = signal.text;
