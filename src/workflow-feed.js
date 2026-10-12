@@ -70,11 +70,19 @@ export function workflowFeed(
     rows.push(
       { text: `${from} → ${label(task.member)} · ${task.kind} · ${task.status}`, tone: 'heading' },
       { text: `Workflow ${flow.id} · task ${task.id} · /queue show ${task.id}`, tone: 'muted' },
+      { text: '', tone: 'body' },
     );
     const assignment = task.kind === 'plan' ? flow.text : task.text;
-    rows.push(...wrapText(assignment.slice(0, 300), width).map(text => ({ text, tone: 'body' })));
-    if (task.result && task.kind !== 'plan')
-      rows.push(...wrapText(task.result.slice(0, 800), width).map(text => ({ text, tone: 'body' })));
+    rows.push(...renderMarkdown(assignment.slice(0, 300), width, { folder: crew.folder }));
+    if (task.result) {
+      rows.push(
+        { text: '', tone: 'body' },
+        { text: 'Result', tone: 'heading' },
+        ...renderMarkdown(task.kind === 'plan' ? task.result : task.result.slice(0, 800), width, {
+          folder: crew.folder,
+        }),
+      );
+    }
     if (task.error || task.question)
       rows.push(...wrapText(task.error || task.question, width).map(text => ({ text, tone: 'system' })));
     if (task.steering?.length)

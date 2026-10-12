@@ -24,6 +24,7 @@ test('CLI preview initializes and renders without calling Codex', t => {
 
 test('offline syntax check verifies repository JavaScript files', () => {
   const script = fileURLToPath(new URL('../scripts/check-syntax.js', import.meta.url));
-  const output = execFileSync(process.execPath, [script], { encoding: 'utf8', timeout: 15000 });
+  // This launches Node for every source, test and script file; Windows startup can be slow.
+  const output = execFileSync(process.execPath, [script], { encoding: 'utf8', timeout: 60000 });
   assert.match(output, /Syntax check passed: \d+ JavaScript files verified/);
 });

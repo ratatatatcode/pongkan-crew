@@ -5,6 +5,33 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Crew } from '../src/crew.js';
 import { displayMessages } from '../src/conversations.js';
+import { PERSONALITIES, personalityInstruction } from '../src/personality.js';
+
+test('every personality guides plain language while preserving the assigned role', () => {
+  for (const style of [...Object.keys(PERSONALITIES), undefined, 'unknown']) {
+    const instruction = personalityInstruction(style);
+    assert.match(instruction, /everyday language/);
+    assert.match(instruction, /explain unfamiliar terms/);
+    assert.match(instruction, /user asks for technical detail/);
+    assert.match(instruction, /role, assigned work/);
+  }
+});
+
+test('plain language reaches direct and Crew Chat turns without forcing discussion handoff reports', async t => {
+  const prompts = [];
+  const crew = setup(t, async (args, prompt, event) => {
+    prompts.push(prompt);
+    event({ type: 'item.completed', item: { type: 'agent_message', text: 'Here is what I suggest.' } });
+  });
+  crew.member('developer').personality = 'friendly';
+  await crew.send('developer', 'Explain your recommendation');
+  const discussion = crew.discussions.start('What should we build?', 'developer');
+  await crew.queue.settled(discussion.taskIds[0]);
+  assert.equal(prompts.length, 2);
+  for (const prompt of prompts) assert.match(prompt, /everyday language/);
+  assert.match(prompts[0], /Handoff format:/);
+  assert.doesNotMatch(prompts[1], /Handoff format:/);
+});
 
 function setup(t, runner) {
   const folder = mkdtempSync(join(tmpdir(), 'pongkan-friendly-'));
