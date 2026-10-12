@@ -49,6 +49,14 @@ Use `/folder` inside the app to confirm the target.
 
 The default crew is **Chief, Researcher, Developer, and Reviewer**. Type normally and press Enter. Crew Chat sends plain messages directly to Chief; `@NAME` sends directly to that teammate. Individual Chat sends to the selected teammate.
 
+| Where you type        | Who receives your message                               |
+| --------------------- | ------------------------------------------------------- |
+| Crew Chat or Activity | Your crew's designated lead (Chief in the default crew) |
+| Individual Chat       | The selected teammate                                   |
+| `@NAME MESSAGE`       | The named teammate, using shared Crew Chat context      |
+
+Use your own words; no specific verb or keyword is required. The recipient AI interprets your request and decides how to handle it within their permissions. Ordinary messages do not automatically route to other crew members or start a team workflow. Use `/discuss`, `/task`, or `/crew-task` when you want explicit team orchestration.
+
 Ordinary sends have no intent classifier, action-keyword routing, or automatic workflow. The recipient handles the message with their configured permissions. Developer can implement an edit or perform authorized Git work directly; Reviewer stays read-only. Questions and actions use the same delivery path.
 
 Every personality uses this same delivery and execution behavior. Styles change wording and tone, never permissions or action selection. Short acknowledgements such as “Okay” keep the recipient's configured access and conversation context.
