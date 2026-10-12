@@ -45,19 +45,36 @@ To discuss first, open Crew Chat. Wait for the discussion to finish, then execut
 
 ```text
 /discuss How should we improve the navigation?
-/crew-task
+/crew-task Proceed with what you've discussed.
 ```
 
 Enter commands separately. Ordinary messages in Crew Chat continue a read-only discussion. Follow implementation in individual Chat and Activity; Crew Chat also shows workflow updates.
 
 ### `/task` and `/crew-task`
 
-| Command             | Goal                                              | Crew Chat context                                   | Requirement                                                                   | Opens after starting   |
-| ------------------- | ------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------- |
-| `/task GOAL`        | Required                                          | Included when run from Crew Chat; otherwise omitted | No discussion required                                                        | Lead's individual Chat |
-| `/crew-task [GOAL]` | Optional; without one, implements the agreed plan | Always uses the latest discussion, from any view    | A saved Crew Chat discussion; any active discussion must finish or be stopped | Crew Chat              |
+| Command             | Goal                                              | Crew Chat context                                   | Requirement                                                                   | Opens after starting                                           |
+| ------------------- | ------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `/task GOAL`        | Required                                          | Included when run from Crew Chat; otherwise omitted | No discussion required                                                        | Crew Chat when started there; otherwise lead's individual Chat |
+| `/crew-task [GOAL]` | Optional; without one, implements the agreed plan | Always uses the latest discussion, from any view    | A saved Crew Chat discussion; any active discussion must finish or be stopped | Crew Chat                                                      |
 
-Both commands create a coordinated workflow in which the lead plans assignments, requests an independent review, and summarizes the result. Use `/task` for a standalone goal and `/crew-task` to carry a Crew Chat discussion into implementation. Both support `--isolated` to run in a separate Git worktree.
+Both commands create a coordinated workflow in which the lead plans assignments, requests an independent review, and summarizes the result. Use `/task` for a standalone goal and `/crew-task` to carry the current Crew Chat discussion into implementation. Workflow plans, assignments, progress, and results appear in the originating Crew Chat; Activity also shows handoffs.
+
+**Individual chat context:** Normal workflows use each teammate's active individual conversation. The lead plans with their own chat context; selecting Developer and entering `/task` does not automatically send Developer's private conversation to the lead. `/crew-task` explicitly includes Crew Chat history, but does not collect everyone's private chats. Include relevant private-chat decisions in the goal or Crew Chat before starting.
+
+### Share a private exchange with another teammate
+
+In Developer's individual Chat, enter `/share reviewer Review keyboard support` or type `share this with Reviewer for review`. This copies the latest completed user/assistant exchange into a new named Crew Chat for Developer and Reviewer. Both reply there in read-only discussion rounds, and follow-ups stay with that duo. Older private exchanges and other individual chats stay private; mentioning a teammate alone does not share anything. Wait for the private reply to finish before sharing.
+
+After their discussion finishes, `/crew-task` executes with the shared findings. `/crew-task --isolated` carries those findings into a separate worktree with fresh individual conversations. Workflow planning, implementation, and review can involve additional crew members. `/handoff` remains a direct assignment to one teammate; `/share` creates a visible shared discussion.
+
+### Adding `--isolated`
+
+| Command                        | Behavior                                                                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `/task --isolated GOAL`        | Runs the goal in a separate Git worktree. Includes Crew Chat history when started from Crew Chat.                        |
+| `/crew-task --isolated [GOAL]` | Runs the current Crew Chat plan in a separate Git worktree, with an optional goal override. Requires a saved discussion. |
+
+`--isolated` starts from committed `HEAD` and creates fresh individual conversations for the workflow. Existing private-chat history is not carried over; explicitly supplied goals and Crew Chat context still are. Commit the changes you want included before starting. The branch and worktree remain available for inspection afterward; the command does not automatically commit, merge, push, or open a PR.
 
 | Action                          | Command                                                   |
 | ------------------------------- | --------------------------------------------------------- |
@@ -93,6 +110,7 @@ Rotating tips appear below the command/status line while the CLI is open.
 | Shift+Left                | Queue the typed prompt and resume paused dispatch                          |
 | Shift+Right               | Fill in the answer command for a waiting question; press again to cycle    |
 | Enter                     | Send the full prompt; preserve a paused queue                              |
+| Shift+Enter               | Insert a new line without sending                                          |
 | Esc                       | Close a panel or clear input                                               |
 | ? / F1                    | Open help                                                                  |
 | Ctrl+K                    | Stop selected work                                                         |
@@ -112,7 +130,9 @@ Build a local Next.js todo app with the crew: [walkthrough](docs/TODO_WEBSITE_WA
 
 Use `/model` to inspect model settings, `/memory add TEXT` to save project guidance, and `/schedule` for recurring checks. `/context on` optionally clips long assistant context; full saved history is retained.
 
-Project state lives in `<target-folder>/.pongkan-crew/`. Add `.pongkan-crew/` to your project's `.gitignore` and keep it private. `/markdown on` exports future changes to `docs/pongkan-docs/`; it defaults to off. Crew Chat exports identify Enter versus Shift+Left submissions, submission/start times, and queued prompts waiting for earlier replies.
+Markdown exports use UTF-8 and are written when work finishes: one file per workflow or discussion, plus one per standalone task. Workflow steps and discussion turns do not create separate files. To consolidate older task exports or repair encoding, enable `/markdown on` and run `/markdown refresh`. It saves combined documents before removing their owned task duplicates; unrelated files and saved history are preserved.
+
+Project state lives in `<target-folder>/.pongkan-crew/`. Add `.pongkan-crew/` to your project's `.gitignore` and keep it private. `/markdown on` exports finished work to `docs/pongkan-docs/`; it defaults to off. Live progress remains in the app, and export files are not automatically added to model context. Crew Chat exports retain submission metadata.
 
 Writers can edit project files. Planning, discussions, and reviews are read-only. Keep changes in version control and read the [security boundaries](SECURITY.md).
 

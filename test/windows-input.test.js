@@ -41,7 +41,7 @@ test(
       delta => wheel.push(delta),
     )(output.slice(1));
     assert.deepEqual(wheel, [3, -3]);
-    assert.equal(text, '\t\x1bOQ\x1b[A\x7f\x1b[5~\x1b[6~\x1b[H\x1b[F\x1b[B\x1b[1;2C\x1b[1;2Q\x1b[Zhello\r');
+    assert.equal(text, '\t\x1bOQ\x1b[A\x7f\x1b[5~\x1b[6~\x1b[H\x1b[F\x1b[B\x1b[1;2C\x1b[1;2Q\x1b[Z\x1b[13;2uhello\r');
   },
 );
 

@@ -14,6 +14,16 @@ function setup(t) {
   return { crew, selected: 'chief', panel: null, notice: '', scroll: 0, send() {}, quit() {} };
 }
 
+test('multiline task and discussion prompts keep their line breaks', t => {
+  const app = setup(t);
+  app.crew.queue.pause();
+  app.view = 'chat';
+  execute(app, '/task Build navigation\nKeep keyboard support.');
+  assert.equal(app.crew.state.workflows.at(-1).text, 'Build navigation\nKeep keyboard support.');
+  execute(app, '/discuss First requirement\nSecond requirement');
+  assert.equal(app.crew.discussions.current.messages[0].text, 'First requirement\nSecond requirement');
+});
+
 test('queue shortcut submits a follow-up and resumes a paused crew without commands', t => {
   const app = setup(t);
   app.view = 'group';

@@ -9,6 +9,7 @@ const FLOW_STATUS = new Set([
   'working',
   'reviewing',
   'summarizing',
+  'collaborating',
   'completed',
   'failed',
   'cancelled',
@@ -172,6 +173,12 @@ export function validateState(state) {
         !['working', 'completed', 'failed', 'cancelled', 'interrupted'].includes(d.status) ||
         !Array.isArray(d.taskIds) ||
         !Array.isArray(d.messages) ||
+        (d.participants !== undefined &&
+          (!Array.isArray(d.participants) ||
+            d.participants.length < 1 ||
+            d.participants.length > MAX_TEAM ||
+            d.participants.some(name => typeof name !== 'string' || !NAME.test(name)) ||
+            new Set(d.participants).size !== d.participants.length)) ||
         d.messages.some(
           m =>
             !m ||
@@ -179,6 +186,15 @@ export function validateState(state) {
             typeof m.speaker !== 'string' ||
             !['user', 'assistant'].includes(m.role),
         ),
+    )
+  )
+    invalid();
+  if (
+    state.discussions.some(
+      d =>
+        d.priorDiscussionIds !== undefined &&
+        (!Array.isArray(d.priorDiscussionIds) ||
+          d.priorDiscussionIds.some(id => typeof id !== 'string' || !ID.test(id))),
     )
   )
     invalid();
@@ -257,7 +273,7 @@ export function validateState(state) {
       typeof task.text !== 'string' ||
       !TASK_STATUS.has(task.status) ||
       !Number.isFinite(task.createdAt) ||
-      !['message', 'plan', 'work', 'review', 'summary'].includes(task.kind) ||
+      !['message', 'plan', 'work', 'review', 'summary', 'coordination', 'revision'].includes(task.kind) ||
       (task.discussionId && (!discussions.has(task.discussionId) || task.readOnly !== true)) ||
       (task.workflowId && !flows.has(task.workflowId)) ||
       (task.dependsOn && (!ids.has(task.dependsOn) || task.dependsOn === task.id)) ||
@@ -265,6 +281,7 @@ export function validateState(state) {
     )
       invalid();
     if (task.result !== undefined && typeof task.result !== 'string') invalid();
+    if (task.displayText !== undefined && typeof task.displayText !== 'string') invalid();
     if (
       task.conversationId &&
       !state.conversations.some(c => c.id === task.conversationId && c.kind === 'direct' && c.member === task.member)

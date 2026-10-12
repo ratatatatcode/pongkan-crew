@@ -16,9 +16,11 @@ export function terminalInput(write, scroll, click = () => {}) {
     clearTimeout(flush);
     pending += chunk;
     while (pending) {
-      const start = pending.indexOf('\x1b[<');
+      const start = pending.search(/\x1b\[(?:<|27;)/);
       if (start < 0) {
-        const keep = pending.endsWith('\x1b[') ? 2 : pending.endsWith('\x1b') ? 1 : 0;
+        const escape = pending.lastIndexOf('\x1b');
+        const tail = escape < 0 ? '' : pending.slice(escape);
+        const keep = tail && ['\x1b[<', '\x1b[27;2;13~'].some(prefix => prefix.startsWith(tail)) ? tail.length : 0;
         if (pending.length > keep) write(pending.slice(0, pending.length - keep));
         pending = keep ? pending.slice(-keep) : '';
         if (pending)
@@ -33,6 +35,12 @@ export function terminalInput(write, scroll, click = () => {}) {
         write(pending.slice(0, start));
         pending = pending.slice(start);
       }
+      if (pending.startsWith('\x1b[27;2;13~')) {
+        write('\x1b[13;2u');
+        pending = pending.slice('\x1b[27;2;13~'.length);
+        continue;
+      }
+      if ('\x1b[27;2;13~'.startsWith(pending)) return;
       const report = pending.match(/^\x1b\[<(\d+);(\d+);(\d+)([Mm])/);
       if (!report) {
         if (/^\x1b\[<[\d;]*$/.test(pending)) return;

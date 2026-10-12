@@ -60,10 +60,10 @@ In Chat, send this to Chief. This request repeats the requirements so it can sta
 After the discussion in step 3 finishes, run this from any tab to use its plan as context:
 
 ```text
-/crew-task Build the agreed local todo app in this existing Next.js folder. Chief: assign setup, implementation, README instructions, and checks to Developer, then request an independent review from Reviewer. Inspect existing files first. If shadcn is not configured, initialize it here with npx.cmd shadcn@latest init --preset b0; do not create another Next.js project or nested folder. Install missing dependencies and preserve the generated b0 theme, components, and design tokens. Reject blank titles and preserve invalid saved data. No backend, database, login, cloud sync, or remote runtime assets. Document how to run the app, run relevant checks, and report actual results and anything not checked. Do not commit, push, or deploy.
+/crew-task Proceed with what you've discussed.
 ```
 
-You can also enter `/crew-task` without a goal to ask Chief to implement the agreed plan. The explicit goal above adds setup details and constraints to that plan. Use one build option per run.
+This uses the saved Crew Chat discussion as context, so you do not need to repeat the agreed requirements. You can also enter `/crew-task` without a goal to ask Chief to implement the agreed plan. Use one build option per run.
 
 ### Follow progress
 

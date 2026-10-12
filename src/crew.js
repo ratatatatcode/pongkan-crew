@@ -409,22 +409,25 @@ export class Crew extends EventEmitter {
     const schemaPath = schema ? join(this.folder, '.pongkan-crew', `schema-${randomUUID()}.json`) : null;
     let recoveredContext = '';
     if (!discussion) {
+      // This workflow's results already arrive through the task handoff. Replaying
+      // its generated prompts here repeats the goal and all prior handoffs.
+      const workflowTaskIds = task?.workflowId
+        ? new Set(this.state.tasks.filter(t => t.workflowId === task.workflowId).map(t => t.id))
+        : null;
+      const history = displayMessages(member, this.state.tasks, this.state.workflows)
+        .slice(0, -1)
+        .filter(message => !workflowTaskIds?.has(message.taskId));
       recoveredContext = this.state.contextOptimization
         ? crewContext(
             this,
             'Recovered conversation',
-            displayMessages(member, this.state.tasks, this.state.workflows)
-              .slice(0, -1)
-              .map((message, index) => ({
-                label: `${message.role} (history ${index + 1}${message.taskId ? `, task ${message.taskId}` : ''})`,
-                text: message.text,
-                preserve: message.role !== 'assistant',
-              })),
+            history.map((message, index) => ({
+              label: `${message.role} (history ${index + 1}${message.taskId ? `, task ${message.taskId}` : ''})`,
+              text: message.text,
+              preserve: message.role !== 'assistant',
+            })),
           )
-        : displayMessages(member, this.state.tasks, this.state.workflows)
-            .slice(0, -1)
-            .map(message => `${message.role}: ${message.text}`)
-            .join('\n\n');
+        : history.map(message => `${message.role}: ${message.text}`).join('\n\n');
     }
     try {
       if (schemaPath) {

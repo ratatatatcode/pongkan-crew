@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { layoutInput, navigateInput } from '../src/input.js';
+import { layoutInput, navigateInput, promptEnterAction } from '../src/input.js';
 import { cellWidth } from '../src/markdown.js';
 import { screen } from '../src/ui.js';
 
@@ -18,6 +18,28 @@ test('arrow navigation edits wrapped input before reaching prompt history', () =
   assert.deepEqual(move(52, 'left'), { cursor: 51 });
   assert.deepEqual(move(51, 'right'), { cursor: 52 });
   assert.deepEqual(navigateInput('hello', 5, { name: 'up' }, 'chief', 60), { history: -1 });
+});
+
+test('explicit line breaks render separate rows and preserve cursor navigation', () => {
+  const text = 'first\n\nlast';
+  const layout = layoutInput(text, 11, 'chief', 60);
+  assert.deepEqual(layout.lines, ['chief> first', '       ', '       last']);
+  assert.equal(layout.cursorRow, 2);
+  assert.equal(layout.cursorColumn, 11);
+  assert.deepEqual(navigateInput(text, 3, { name: 'end' }, 'chief', 60), { cursor: 5 });
+  assert.deepEqual(navigateInput(text, 9, { name: 'home' }, 'chief', 60), { cursor: 7 });
+  assert.deepEqual(navigateInput(text, 5, { name: 'down' }, 'chief', 60), { cursor: 6 });
+  assert.deepEqual(navigateInput(text, 6, { name: 'down' }, 'chief', 60), { cursor: 7 });
+  assert.deepEqual(navigateInput(text, 7, { name: 'up' }, 'chief', 60), { cursor: 6 });
+  assert.deepEqual(layoutInput('first\n', 6, 'chief', 60).lines, ['chief> first', '       ']);
+});
+
+test('Shift+Enter inserts a line break while Enter submits', () => {
+  assert.equal(promptEnterAction('\r', { name: 'return' }), 'submit');
+  assert.equal(promptEnterAction('\r', { name: 'return', shift: true }), 'newline');
+  assert.equal(promptEnterAction('\x1b[13;2u', { sequence: '\x1b[13;2u' }), 'newline');
+  assert.equal(promptEnterAction('\x1b[27;2;13~', {}), 'newline');
+  assert.equal(promptEnterAction('x', { name: 'x' }), null);
 });
 
 test('long prompts wrap and the input viewport follows the cursor instead of truncating to one line', () => {

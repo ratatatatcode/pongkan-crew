@@ -6,6 +6,51 @@ import { join } from 'node:path';
 import { Crew } from '../src/crew.js';
 import { execute } from '../src/commands.js';
 
+for (const optimized of [false, true]) {
+  test(`workflow history deduplication preserves earlier user answers (context optimization ${optimized})`, async t => {
+    const folder = mkdtempSync(join(tmpdir(), 'pongkan-context-answers-'));
+    let crew;
+    let answerTask;
+    let ready;
+    const waiting = new Promise(resolve => (ready = resolve));
+    crew = new Crew(folder, {
+      runner: async (args, prompt, event) => {
+        const task = crew.state.tasks.find(task => task.status === 'running');
+        let text = 'Checked.';
+        if (task.kind === 'plan')
+          text = JSON.stringify({
+            steps: [
+              { member: 'researcher', task: 'Confirm constraints' },
+              { member: 'developer', task: 'Implement' },
+            ],
+            reviewer: 'reviewer',
+          });
+        else if (task.member === 'researcher' && !task.answers?.length) {
+          answerTask = task;
+          text = 'PONGKAN_QUESTION: Which constraint must be preserved?';
+        } else if (task.member === 'developer') {
+          assert.match(prompt, /PRESERVE_OFFLINE_ACCESS/);
+          assert.equal(prompt.split('PRESERVE_OFFLINE_ACCESS').length - 1, 1);
+        }
+        event({ type: 'item.completed', item: { type: 'agent_message', text } });
+      },
+    });
+    t.after(async () => {
+      await crew.close();
+      rmSync(folder, { recursive: true, force: true });
+    });
+    crew.state.contextOptimization = optimized;
+    crew.on('change', () => {
+      if (answerTask?.status === 'waiting') ready();
+    });
+    const flow = crew.workflows.start('Implement the feature');
+    await waiting;
+    crew.queue.answer(answerTask.id, 'PRESERVE_OFFLINE_ACCESS');
+    await crew.workflows.settled(flow.id);
+    assert.equal(flow.status, 'completed');
+  });
+}
+
 test('individual follow-ups include saved context even when resuming a session', async t => {
   const folder = mkdtempSync(join(tmpdir(), 'pongkan-context-resume-'));
   const prompts = [];

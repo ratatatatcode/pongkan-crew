@@ -10,7 +10,7 @@ import { screen } from './ui.js';
 import { execute, queuePrompt, cycle, HELP } from './commands.js';
 import { acquireLock, checkRuntime } from './runtime.js';
 import { completions } from './controls.js';
-import { layoutInput, navigateInput, PromptHistory } from './input.js';
+import { layoutInput, navigateInput, PromptHistory, promptEnterAction } from './input.js';
 import { MOUSE_ON, MOUSE_OFF, scrollView, terminalInput } from './scroll.js';
 import { enableWindowsMouse, connectWindowsInput } from './windows-input.js';
 import { runWorker } from './scheduler.js';
@@ -256,7 +256,9 @@ async function main() {
       } else if (key.name === 'pageup' || key.name === 'pagedown') {
         scrollView(app, key.name === 'pageup' ? 10 : -10);
       } else if (key.shift && key.name === 'right') setInput(answerShortcut(app, input.join('')));
-      else if (key.name === 'return') {
+      else if (promptEnterAction(str, key) === 'newline') {
+        input.splice(cursor++, 0, '\n');
+      } else if (promptEnterAction(str, key) === 'submit') {
         const line = input.join('').trim();
         setInput('');
         if (line) {

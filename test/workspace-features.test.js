@@ -48,6 +48,31 @@ test('Crew Chat displays replies and Activity displays workflow handoffs without
   assert.equal(JSON.stringify(crew.state), before);
 });
 
+test('crew-task shows planning, assignments and completed handoffs in its source Crew Chat', async t => {
+  const app = setup(t);
+  app.crew.queue.pause();
+  execute(app, '/discuss Build navigation');
+  app.crew.discussions.stop();
+  execute(app, '/crew-task proceed with what you discussed');
+  const flow = app.crew.state.workflows.at(-1);
+  const pending = screen(app.crew, app.selected, '', '', 140, 100, 0, null, { view: 'group' });
+  assert.match(pending, /proceed with what you discussed/);
+  assert.match(pending, /Chief.*Waiting for a turn/);
+  app.crew.queue.resume();
+  await app.crew.workflows.settled(flow.id);
+  assert.equal(flow.status, 'completed');
+  const output = screen(app.crew, app.selected, '', '', 140, 100, 0, null, { view: 'group' });
+  assert.match(output, /developer: Build navigation/);
+  assert.match(output, /Verified keyboard navigation/);
+  assert.match(output, /Chief.*Developer/);
+  assert.match(output, /Developer.*Reviewer/);
+  execute(app, '/conversation new group Another topic');
+  assert.doesNotMatch(
+    screen(app.crew, app.selected, '', '', 140, 100, 0, null, { view: 'group' }),
+    /Verified keyboard navigation/,
+  );
+});
+
 test('named direct chats isolate context, persist, reopen, and preserve running destinations', async t => {
   const prompts = [];
   const app = setup(t, async (args, prompt, event) => {

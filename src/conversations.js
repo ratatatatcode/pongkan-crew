@@ -7,11 +7,13 @@ export const directMessages = member => member.messages.filter(message => messag
 // session context, or durable task results used to execute the workflow.
 export function displayMessages(member, tasks = [], workflows = []) {
   const memberTasks = tasks.filter(task => task.member === member.name);
+  const tasksById = new Map(memberTasks.map(task => [task.id, task]));
+  const flowsById = new Map(workflows.map(flow => [flow.id, flow]));
   let currentTask;
   return directMessages(member).map(message => {
     if (message.role === 'user') {
       currentTask = message.taskId
-        ? memberTasks.find(task => task.id === message.taskId)
+        ? tasksById.get(message.taskId)
         : memberTasks.find(
             task =>
               message.text === task.text ||
@@ -21,7 +23,7 @@ export function displayMessages(member, tasks = [], workflows = []) {
               ),
           );
     }
-    const task = message.taskId ? memberTasks.find(task => task.id === message.taskId) : currentTask;
+    const task = message.taskId ? tasksById.get(message.taskId) : currentTask;
     if (message.role === 'assistant') {
       const signal = taskSignal(message.text);
       if (signal)
@@ -52,7 +54,7 @@ export function displayMessages(member, tasks = [], workflows = []) {
       }
     }
     if (!task?.workflowId) return message;
-    const flow = workflows.find(flow => flow.id === task.workflowId);
+    const flow = flowsById.get(task.workflowId);
     if (message.role === 'user') {
       const text =
         task.kind === 'plan'

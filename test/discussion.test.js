@@ -6,12 +6,65 @@ import { join } from 'node:path';
 import { Crew } from '../src/crew.js';
 import { execute } from '../src/commands.js';
 import { screen } from '../src/ui.js';
+import { validateState } from '../src/state.js';
 
 function setup(t, runner) {
   const folder = mkdtempSync(join(tmpdir(), 'pongkan-discuss-'));
   t.after(() => rmSync(folder, { recursive: true, force: true }));
   return new Crew(folder, { runner });
 }
+
+test('saved discussion lineage and workflow display fields reject malformed values', t => {
+  const crew = setup(t);
+  crew.queue.pause();
+  const discussion = crew.discussions.start('Plan navigation', 'developer');
+  for (const value of ['bad', {}, [null], ['not-an-id']]) {
+    const state = structuredClone(crew.state);
+    state.discussions[0].priorDiscussionIds = value;
+    assert.throws(() => validateState(state), /Invalid crew state/);
+  }
+  const state = structuredClone(crew.state);
+  state.tasks.find(task => task.id === discussion.taskIds[0]).displayText = {};
+  assert.throws(() => validateState(state), /Invalid crew state/);
+});
+
+test('Crew Chat knows completed workflow results across follow-ups and restart, but not in a new chat', async t => {
+  const prompts = [];
+  const runner = async (args, prompt, event) => {
+    prompts.push(prompt);
+    const text = prompt.includes('PONGKAN_PLAN')
+      ? JSON.stringify({ steps: [{ member: 'developer', task: 'Implement navigation' }], reviewer: 'reviewer' })
+      : prompt.includes('PONGKAN_SUMMARY')
+        ? 'Navigation implemented; keyboard verification passed.'
+        : prompt.includes('Assignment from')
+          ? 'Updated navigation.js with orange links.'
+          : prompt.includes('Review the completed work')
+            ? 'Review found no defects; browser testing remains pending.'
+            : 'Planning reply.';
+    event({ type: 'item.completed', item: { type: 'agent_message', text } });
+  };
+  const crew = setup(t, runner);
+  const first = crew.discussions.start('Plan navigation', 'developer');
+  await crew.queue.settled(first.taskIds.at(-1));
+  execute({ crew, view: 'group', selected: 'developer' }, '/crew-task');
+  const flow = crew.state.workflows.at(-1);
+  await crew.workflows.settled(flow.id);
+  const restored = new Crew(crew.folder, { runner });
+  for (const question of ['What did you just do?', 'What remains?']) {
+    const discussion = restored.discussions.start(question, 'developer');
+    await restored.queue.settled(discussion.taskIds.at(-1));
+    assert.match(prompts.at(-1), /Navigation implemented; keyboard verification passed/);
+    assert.match(prompts.at(-1), /Updated navigation.js with orange links/);
+    assert.match(prompts.at(-1), /browser testing remains pending/);
+    assert.match(prompts.at(-1), /Workflow .*completed/);
+    assert.match(screen(restored, 'developer', '', '', 120, 250, 0, null, { view: 'group' }), /Navigation implemented/);
+  }
+  restored.discussions.newConversation();
+  const fresh = restored.discussions.start('Unrelated topic', 'developer');
+  await restored.queue.settled(fresh.taskIds.at(-1));
+  assert.doesNotMatch(prompts.at(-1), /Navigation implemented|Updated navigation.js/);
+  await restored.close();
+});
 
 test('messages sent during a reply stay queued until the original prompt finishes', async t => {
   let release;
@@ -164,8 +217,8 @@ test('Crew Chat proceed creates a workflow with the discussed plan', async t => 
   assert.ok(flow);
   assert.match(flow.text, /Proceed with that/);
   assert.match(flow.text, /Use the orange navigation layout/);
-  assert.equal(app.view, 'chat');
-  assert.equal(app.selected, crew.leadName);
+  assert.equal(app.view, 'group');
+  assert.equal(app.selected, 'developer');
 });
 
 test('Crew Chat task commands include history and execution cannot interrupt a discussion', async t => {
