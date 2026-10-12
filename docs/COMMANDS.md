@@ -18,6 +18,14 @@ Type normally **inside Pongkan Crew** and press Enter. Slash commands are option
 
 ## Plain messages
 
+| Where you type        | Who receives your message                               |
+| --------------------- | ------------------------------------------------------- |
+| Crew Chat or Activity | Your crew's designated lead (Chief in the default crew) |
+| Individual Chat       | The selected teammate                                   |
+| `@NAME MESSAGE`       | The named teammate, using shared Crew Chat context      |
+
+Type naturally and press Enter; no specific verb or keyword is required. The recipient AI decides how to handle your request within their permissions. Ordinary messages do not automatically route to other crew members or start a team workflow. Use the explicit commands below for team orchestration.
+
 Crew Chat sends ordinary messages directly to Chief. `@NAME MESSAGE` sends directly to that teammate; Individual Chat sends to the selected teammate. Activity uses Crew Chat. Each send queues one recipient turn, with no intent classifier, action keywords, automatic planning, review, or summary.
 
 Developer retains write access for questions and authorized actions alike. Reviewer remains read-only. Follow-ups use the conversation context and queue after active shared turns. `@developer Commit and push.` uses the same path as any other request; the worker checks actual Git access when executing.
