@@ -48,6 +48,7 @@ const COMMANDS = [
   '/markdown',
   '/markdown on',
   '/markdown off',
+  '/markdown refresh',
   '/context',
   '/context on',
   '/context off',

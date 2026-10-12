@@ -90,7 +90,8 @@ export const HELP = [
   '/new-all                      Fresh conversations for every teammate and Crew Chat',
   "/status                       Show the whole crew's current status",
   '/context [on|off|status]       Control local context clipping; inspect character counts',
-  '/markdown [on|off]            Save task and discussion Markdown in docs/pongkan-docs',
+  '/markdown [on|off]            Save finished workflows, discussions and tasks as Markdown',
+  '/markdown refresh             Regenerate finished exports; consolidate old task files',
   '/model [NAME]                 Show model settings and live status',
   '/model list                   Browse locally cached Codex models',
   '/model set NAME|all MODEL [EFFORT] Choose model for future tasks',
@@ -925,7 +926,13 @@ export function execute(app, line, { submission = 'enter' } = {}) {
       ];
     });
   } else if (command === '/markdown') {
-    if (parts.length > 1 || (text && !['on', 'off'].includes(text))) throw new Error('Use /markdown on|off.');
+    if (parts.length > 1 || (text && !['on', 'off', 'refresh'].includes(text)))
+      throw new Error('Use /markdown on|off|refresh.');
+    if (text === 'refresh') {
+      const result = crew.markdownExporter.refresh(crew.state);
+      app.notice = `Markdown exports refreshed: ${result.written} written, ${result.failed} failed.${result.failed ? ' See Activity for errors.' : ''}`;
+      return;
+    }
     if (text) crew.setMarkdown(text === 'on');
     app.notice = `Markdown saving ${crew.state.markdownEnabled ? 'ON' : 'OFF'}; destination: ${crew.folder}/docs/pongkan-docs. Existing documents are retained.`;
   } else if (command === '/context') {

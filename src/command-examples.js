@@ -60,6 +60,7 @@ export const COMMAND_EXAMPLES = {
   '/model [': '/model developer',
   '/model list': '/model list',
   '/context': '/context on; /context status; /context off (enter separately)',
+  '/markdown refresh': '/markdown refresh',
   '/markdown': '/markdown on; /markdown; /markdown off (enter separately)',
   '/model set':
     '/model set all gpt-5.4 medium; /model set developer gpt-5.4 high (enter separately; check /model list first)',
