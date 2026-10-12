@@ -52,10 +52,10 @@ Enter commands separately. Ordinary messages in Crew Chat continue a read-only d
 
 ### `/task` and `/crew-task`
 
-| Command | Goal | Crew Chat context | Requirement | Opens after starting |
-| --- | --- | --- | --- | --- |
-| `/task GOAL` | Required | Included when run from Crew Chat; otherwise omitted | No discussion required | Lead's individual Chat |
-| `/crew-task [GOAL]` | Optional; without one, implements the agreed plan | Always uses the latest discussion, from any view | A saved Crew Chat discussion; any active discussion must finish or be stopped | Crew Chat |
+| Command             | Goal                                              | Crew Chat context                                   | Requirement                                                                   | Opens after starting   |
+| ------------------- | ------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------- |
+| `/task GOAL`        | Required                                          | Included when run from Crew Chat; otherwise omitted | No discussion required                                                        | Lead's individual Chat |
+| `/crew-task [GOAL]` | Optional; without one, implements the agreed plan | Always uses the latest discussion, from any view    | A saved Crew Chat discussion; any active discussion must finish or be stopped | Crew Chat              |
 
 Both commands create a coordinated workflow in which the lead plans assignments, requests an independent review, and summarizes the result. Use `/task` for a standalone goal and `/crew-task` to carry a Crew Chat discussion into implementation. Both support `--isolated` to run in a separate Git worktree.
 
