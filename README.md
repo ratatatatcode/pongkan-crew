@@ -89,6 +89,8 @@ Crew Chat and individual chats use separate sessions. A teammate's individual ch
 
 ### Optional `/task` and `/crew-task` overrides
 
+You can ask for work in ordinary language instead of typing either command. Crew interprets the request and routes it to a reply or coordinated workflow as appropriate. For example, ask Chief to build a feature and have Reviewer check it; Crew can plan and assign the work automatically. Use `/task` or `/crew-task` when you want to explicitly choose a workflow path.
+
 | Command             | Goal                                              | Crew Chat context                                   | Requirement                                                                   | Opens after starting                                           |
 | ------------------- | ------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | `/task GOAL`        | Required                                          | Included when run from Crew Chat; otherwise omitted | No discussion required                                                        | Crew Chat when started there; otherwise lead's individual Chat |
