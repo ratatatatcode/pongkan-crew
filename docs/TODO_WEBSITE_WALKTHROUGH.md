@@ -35,6 +35,8 @@ In the CLI, check the target and crew:
 
 Use the default crew; no preset change is needed for this walkthrough.
 
+Developer has write access and Reviewer is read-only by default. To set the modes explicitly for future turns, use `/permissions approve developer` and `/permissions read-only reviewer`. Approve for me uses Codex's workspace-write sandbox with automatic review; it does not grant Full Access. Crew's noninteractive runner may stop if a request needs a live approval prompt.
+
 Crew interprets ordinary messages and routes them to a reply, assignment, discussion, or workflow based on your request. For a direct implementation request, send `@developer Replace the toggle labels with Show summary and Hide summary.` To coordinate implementation and independent review, use `/task` or `/crew-task`, or ask for it in plain language in Crew Chat.
 
 If you update Crew while this terminal is open, restart when the source-change notice appears. Saved conversations remain available. A request interrupted before dispatch stays saved and can be resent; dispatched work can be resumed without repeating completed steps.
@@ -49,7 +51,7 @@ Use F2 or Tab to open Crew Chat, then type this and press Enter:
 /discuss Plan our local todo app in this Next.js project using shadcn/ui preset b0 and browser localStorage. Agree on a responsive accessible interface with add, edit, complete, delete, All/Active/Completed filters, and a remaining count. Cover safe loading, invalid saved data, and visible storage errors. No backend or cloud services. Chief, summarize the plan and handoff. Do not edit files yet.
 ```
 
-This starts a read-only shared discussion. When ready, address Developer to implement the agreed build, or use `/crew-task` for an explicit coordinated workflow. You can also approve the plan in your own words in Crew Chat, for example: `Proceed with the agreed plan from our discussion.` Crew uses the recent discussion to interpret that follow-up. Directed messages sent while shared turns are active queue after them.
+This starts a read-only shared discussion. When ready, address Developer to implement the agreed build, or use `/crew-task` for an explicit coordinated workflow. You can also approve the plan in your own words in Crew Chat, for example: `Proceed with the plan we discussed.` Crew uses the recent discussion to interpret that follow-up. Directed messages sent while shared turns are active queue after them.
 
 ## 4. Build and review
 
@@ -69,7 +71,7 @@ In Crew Chat, type this to use the plan from step 3:
 /crew-task
 ```
 
-This uses the saved Crew Chat findings, so you do not need to repeat the agreed requirements. Wait for the discussion to finish before starting. Use one build option per run. Or approve the plan naturally in Crew Chat; `Proceed with the agreed plan from our discussion.` is one example, not a required phrase.
+This uses the saved Crew Chat findings, so you do not need to repeat the agreed requirements. Wait for the discussion to finish before starting. Use one build option per run. Or approve the plan naturally in Crew Chat; `Proceed with the plan we discussed.` is one example, not a required phrase.
 
 ### Follow progress
 

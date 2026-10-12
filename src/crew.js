@@ -27,22 +27,21 @@ import { Github } from './github.js';
 import { workPolicy } from './questions.js';
 import { MarkdownExporter, markdownDirectory } from './markdown-export.js';
 import { InputRouter } from './input-router.js';
+import { codexExecutionPolicy } from './codex-permissions.js';
 
-export function buildArgs(folder, member, schemaPath = null) {
-  const write = member.writable ?? member.name === 'developer';
+export function buildArgs(folder, member, schemaPath = null, permissionMode = member.codexPermissions || 'approve') {
+  const { sandbox, approval, reviewer } = codexExecutionPolicy(member, permissionMode);
   const args = [
     'exec',
     '-C',
     folder,
     '-s',
-    write ? 'workspace-write' : 'read-only',
+    sandbox,
     '-c',
-    'approval_policy="on-request"',
-    '-c',
-    'approvals_reviewer="auto_review"',
-    '--skip-git-repo-check',
-    '--json',
+    `approval_policy=${JSON.stringify(approval)}`,
   ];
+  if (reviewer) args.push('-c', `approvals_reviewer=${JSON.stringify(reviewer)}`);
+  args.push('--skip-git-repo-check', '--json');
   if (schemaPath) args.push('--output-schema', schemaPath);
   if (member.model) {
     validateModelChoice(member.model, member.reasoningEffort, []);
@@ -222,7 +221,15 @@ export class Crew extends EventEmitter {
     if (!/^[a-z][a-z0-9-]{0,31}$/.test(name))
       throw new Error('Use a lowercase name, up to 32 letters, numbers or hyphens.');
     if (this.state.members.some(m => m.name === name)) throw new Error('That teammate already exists.');
-    this.state.members.push({ name, role, writable, status: 'ready', messages: [], threadId: null });
+    this.state.members.push({
+      name,
+      role,
+      writable,
+      codexPermissions: 'approve',
+      status: 'ready',
+      messages: [],
+      threadId: null,
+    });
     this.save();
   }
   save() {

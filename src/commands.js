@@ -1,4 +1,4 @@
-import { renderMarkdown } from './markdown.js';
+import { renderMarkdown, wrapText } from './markdown.js';
 import { commandExamples } from './command-examples.js';
 import { ROLES, roleMember } from './roles.js';
 import { presetListRows } from './preset-display.js';
@@ -7,6 +7,7 @@ import { spacedRoleText } from './role-display.js';
 import { readModelCatalog, readModelDefaults, modelLabel, validateModelChoice, modelCatalogLines } from './models.js';
 import { steer } from './steering.js';
 import { PERSONALITIES } from './personality.js';
+import { CODEX_PERMISSION_MODES } from './codex-permissions.js';
 export const HELP = [
   'Type normally and press Enter: the recipient AI interprets your full request.',
   'Slash commands are optional overrides. UPPERCASE = replace with a value; [VALUE] = optional.',
@@ -37,6 +38,8 @@ export const HELP = [
   '/crew rename NAME NEWNAME     Rename teammate; keep lead/reviewer routing',
   '/crew role NAME ROLE          Change instructions for future turns',
   '/crew access NAME read|write  Set permissions; reviewer stays read-only',
+  '/permissions [NAME]           Choose Codex permissions for a teammate',
+  '/permissions MODE [NAME]      Set ask, approve, full, or read-only',
   '/crew info [NAME]             Show role, permissions and session',
   '',
   '/personality                  List styles and current teammate settings',
@@ -264,6 +267,49 @@ export function execute(app, line, { submission = 'enter' } = {}) {
           .flatMap(t => [`${t.id} ${t.member}: ${t.question}`, `/answer ${t.id} YOUR_REPLY`, '']),
         'Permission approvals remain separate from clarification answers.',
       ]);
+  } else if (command === '/permissions') {
+    const mode = CODEX_PERMISSION_MODES.find(option => option.id === parts[0]);
+    if (mode) {
+      if (parts.length > 2) throw new Error('Use /permissions MODE [NAME].');
+      const member = crew.member(parts[1] || app.selected);
+      member.codexPermissions = mode.id;
+      crew.save();
+      app.panel = null;
+      app.notice = `Codex permissions set to ${mode.label} for ${member.name}; it applies to future turns.`;
+    } else {
+      if (parts.length > 1) throw new Error('Use /permissions [NAME] or /permissions MODE [NAME].');
+      const member = crew.member(parts[0] || app.selected);
+      const currentMode = member.codexPermissions || 'approve';
+      const currentIndex = Math.max(0, CODEX_PERMISSION_MODES.findIndex(option => option.id === currentMode));
+      panel(`CODEX PERMISSIONS · ${member.name}`, []);
+      const picker = app.panel;
+      picker.kind = 'codex-permissions';
+      picker.permissionIndex = currentIndex;
+      picker.getRows = width => [
+        { text: 'Choose the Codex permission mode for future turns.', tone: 'muted' },
+        { text: '' },
+        ...CODEX_PERMISSION_MODES.map((option, index) => ({
+          text: `${index === picker.permissionIndex ? '›' : ' '} ${index + 1}. ${option.label}${option.id === currentMode ? '  (current)' : ''}`,
+          tone: index === picker.permissionIndex ? 'selected' : 'heading',
+        })),
+        { text: '' },
+        ...wrapText(CODEX_PERMISSION_MODES[picker.permissionIndex].description, width - 4).map(text => ({
+          text,
+          tone: 'body',
+        })),
+        ...(!member.writable
+          ? [{ text: 'This teammate is read-only; that access limit overrides these modes.', tone: 'muted' }]
+          : []),
+        { text: '↑/↓ Select  ·  Enter Apply  ·  Esc Cancel', tone: 'muted' },
+      ];
+      picker.onSelect = () => {
+        const selectedMode = CODEX_PERMISSION_MODES[picker.permissionIndex];
+        member.codexPermissions = selectedMode.id;
+        crew.save();
+        app.panel = null;
+        app.notice = `Codex permissions set to ${selectedMode.label} for ${member.name}; it applies to future turns.`;
+      };
+    }
   } else if (command === '/answer') {
     crew.queue.answer(parts[0], requireText(parts.slice(1).join(' ')));
     app.panel = null;
