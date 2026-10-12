@@ -1,12 +1,12 @@
 # Todo Website Walkthrough
 
-[Back to README](README.md)
+[Back to README](../README.md)
 
 Build the sample todo app in the `todo-app` folder with Next.js, shadcn/ui preset `b0`, and browser storage. The default Pongkan Crew (Chief, Researcher, Developer, Reviewer) was used.
 
-![Todo app walkthrough](assets/images/todo-result.gif)
+![Todo app walkthrough](../assets/images/todo-result.gif)
 
-[Download the full MP4](assets/video/todo-result.mp4)
+[Download the full MP4](../assets/video/todo-result.mp4)
 
 ## 1. Create the Next.js app
 
@@ -35,37 +35,47 @@ In the CLI, check the target and crew:
 
 Use the default crew; no preset change is needed for this walkthrough.
 
+Plain Crew Chat goes directly to Chief. For implementation, send `@developer Replace the toggle labels with Show summary and Hide summary.` This queues one Developer turn with write access and shared conversation context. There is no classifier or automatic workflow. Use `/task` or `/crew-task` when you explicitly want coordinated implementation and independent review.
+
+If you update Crew while this terminal is open, restart when the source-change notice appears. Saved conversations remain available. A request interrupted before dispatch stays saved and can be resent; dispatched work can be resumed without repeating completed steps.
+
+Add `.pongkan-crew/` to the todo project's `.gitignore` before committing project files. This folder holds private conversations and workflow state. To export finished discussions and work, enter `/markdown on`; Markdown files go to `docs/pongkan-docs/` and should be inspected before sharing.
+
 ## 3. Discuss the todo plan
 
-At the CLI prompt, enter this in Chat:
+Use F2 or Tab to open Crew Chat, then type this and press Enter:
 
 ```text
 /discuss Plan our local todo app in this Next.js project using shadcn/ui preset b0 and browser localStorage. Agree on a responsive accessible interface with add, edit, complete, delete, All/Active/Completed filters, and a remaining count. Cover safe loading, invalid saved data, and visible storage errors. No backend or cloud services. Chief, summarize the plan and handoff. Do not edit files yet.
 ```
 
-`/discuss` is a read-only shared conversation. Wait for it to finish before starting the build. Choose `/task` below for a self-contained build request, or `/crew-task` to build from the latest Crew Chat plan.
+This starts a read-only shared discussion. When ready, address Developer to implement the agreed build, or use `/crew-task` for an explicit coordinated workflow. Directed messages sent while shared turns are active queue after them.
 
 ## 4. Build and review
 
-### Option A: Use `/task`
+### Option A: Give a complete build request
 
-In Chat, send this to Chief. This request repeats the requirements so it can stand on its own:
+In Crew Chat, type this and press Enter. This request repeats the requirements so it can stand on its own:
 
 ```text
 /task Build the local todo app in this existing Next.js folder. Chief: assign setup, implementation, README instructions, and checks to Developer, then request an independent review from Reviewer. Inspect existing files first. If shadcn is not configured, initialize it in this project with npx.cmd shadcn@latest init --preset b0; do not create another Next.js project or nested folder. Install any missing dependencies. Preserve the generated b0 theme and use its components and design tokens. Implement add/edit/complete/delete, All/Active/Completed filters, remaining count, blank-title rejection, responsive layout, and keyboard access. Store todos in browser localStorage with safe startup, invalid-data preservation, and visible storage errors. No backend, database, login, cloud sync, or remote runtime assets. Document how to run the app, run relevant checks, and report actual results and anything not checked. Do not commit, push, or deploy.
 ```
 
-### Option B: Use `/crew-task`
+### Option B: Execute the discussed plan
 
-After the discussion in step 3 finishes, run this from any tab to use its plan as context:
+In Crew Chat, type this to use the plan from step 3:
 
 ```text
-/crew-task Proceed with what you've discussed.
+/crew-task
 ```
 
-This uses the saved Crew Chat discussion as context, so you do not need to repeat the agreed requirements. You can also enter `/crew-task` without a goal to ask Chief to implement the agreed plan. Use one build option per run.
+This uses the saved Crew Chat findings, so you do not need to repeat the agreed requirements. Wait for the discussion to finish before starting. Use one build option per run. These commands explicitly request the shared discussion and coordinated workflow shown in this walkthrough.
 
 ### Follow progress
+
+Chief plans sequential assignments and briefs the assigned teammate. After implementation, Reviewer gives feedback and the worker responds with justified corrections or an explanation. A final independent review follows, then Chief summarizes changes, checks, and unresolved issues. These exchanges appear in the originating Crew Chat.
+
+A **handoff** is the context passed between assignments: earlier findings, reported changes and checks, available changed-file names, and clarification answers. Teammates inspect the same project files; their private conversations are separate. Put decisions in Crew Chat or the build request so execution receives them.
 
 Follow the work with:
 
@@ -73,7 +83,15 @@ Follow the work with:
 /activity
 ```
 
-Use Tab or F2 to switch between Chat, Crew Chat, and Activity. The `/task` option above opens Chief's individual Chat, with work and teammate handoffs in individual chats and Activity. `/crew-task` opens Crew Chat, where the lead's plan, teammate replies, review, and final summary appear as turns finish.
+Use Tab or F2 to switch between Chat, Crew Chat, and Activity. Workflows explicitly started from Crew Chat keep the plan, live teammate replies, review, and final summary there. Activity lists task status and future assignments. Ask `What have you finished so far?` for a lead reply, use `/steer TASK_OR_WORKFLOW_ID Preserve keyboard access` to queue a workflow correction, and `/stop` to cancel current work. After a failure or restart, inspect `/workflow list` and use `/workflow resume ID` to continue unfinished steps without repeating completed ones.
+
+Corrections take effect at the next task boundary. Stopping preserves file edits. `/workflow retry ID` starts a new attempt and can repeat completed steps, so use `/workflow resume ID` for recovery. For a reply from only Chief, use `@chief` in Crew Chat.
+
+Before running the app, inspect `/changes` or `/diff` and read the final review. A completed workflow can still report unresolved defects or checks that were not run. Ask for a follow-up fix when needed.
+
+### Optional isolated build
+
+To execute the saved discussion in a separate Git worktree, use `/crew-task --isolated` after discussion finishes. Commit the todo project's baseline first: isolation starts from committed `HEAD`, so existing uncommitted changes are not copied. Inspect the retained worktree and branch afterward; Crew does not automatically commit, merge, push, or deploy. Run the commands in step 5 from that worktree if the implementation was isolated.
 
 ## 5. Run the app
 
@@ -91,4 +109,4 @@ Open the local address printed by Next.js, usually `http://localhost:3000`. Try 
 - The default Pongkan Crew, with Chief coordinating Developer and Reviewer.
 - shadcn/ui preset `b0`, initialized by Developer in the existing Next.js project if needed.
 - Browser `localStorage`; no backend or cloud service.
-- `/discuss` for planning, then either `/task` or `/crew-task` for implementation and review.
+- Plain messages for direct teammate conversation; `/discuss`, `/crew-task`, `/steer`, and `/workflow resume` for explicit team orchestration.

@@ -531,3 +531,37 @@ test('a full Crew restart persists the toggle and exports recovered task changes
   assert.equal(existsSync(path(next.id)), false);
   await disabled.close();
 });
+
+test('combined workflow Markdown nests task sections and preserves complete original requests and evidence', t => {
+  const f = fixture(t);
+  execute(f.app, '/markdown on');
+  const original = 'Rejig the summary labels.\n\n' + 'Keep the full request and Unicode \ud83c\udf4a. '.repeat(1000);
+  f.state.inputs.push({ workflowId: 'aabbccdd', text: original, createdAt: 1 });
+  f.state.workflows.push({
+    id: 'aabbccdd',
+    text: 'Change the labels',
+    status: 'completed',
+    createdAt: 1,
+    outcome: 'needs_work',
+    criteria: [{ requirement: 'Summary labels', status: 'fail', evidence: 'Old label remains.' }],
+  });
+  f.state.tasks.push({
+    id: '12345678',
+    workflowId: 'aabbccdd',
+    member: 'chief',
+    kind: 'work',
+    status: 'completed',
+    text: 'Inspect labels',
+    result: '## Source findings\n\nThe old label remains.',
+    threadId: 'private-session-id',
+  });
+  f.crew.save();
+  const path = join(f.folder, 'docs', 'pongkan-docs', 'workflow-aabbccdd.md');
+  const content = readFileSync(path, 'utf8');
+  assert.ok(content.includes(original));
+  assert.match(content, /^## Task 12345678$/m);
+  assert.match(content, /^### Assignment$/m);
+  assert.match(content, /Requested outcome\n\nneeds work/);
+  assert.match(content, /Summary labels: fail\. Old label remains/);
+  assert.doesNotMatch(content, /undefined|private-session-id/);
+});

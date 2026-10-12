@@ -5,6 +5,7 @@ Keep changes focused, explain their effect, and report your checks.
 ## Before you start
 
 - Read the [README](README.md) and [command reference](docs/COMMANDS.md).
+- Use the [Codex comparison](docs/CODEX_COMPARISON.md) to distinguish native capabilities from Crew's orchestration features.
 - Discuss substantial changes in an issue first.
 - Exclude credentials and `.pongkan-crew` conversation data.
 - Submit only material you may contribute under the MIT License.
@@ -25,6 +26,8 @@ npm run format:check
 
 These checks run offline. Optional [live checks](README.md#development-checks) require Codex CLI and use your signed-in account.
 
+Ordinary-message tests use the real delivery path and mock the Codex runner when execution is needed. `test/semantic-routing.test.js` also exercises retained semantic-router compatibility, schema parsing, request persistence, conversation isolation, access checks, and outcome verification. Ordinary sends bypass that interpreter. Keep all default tests offline. Dispatcher tests declare explicit mocked AI responses in `test/helpers/intent-decisions.json`, keyed by test scenario and response order. These fixtures never classify message text; missing responses fail instead of guessing an action. Do not reintroduce action-keyword matching or a silent discussion fallback. Keep saved history complete when limiting prompt context.
+
 On Windows, `node scripts/check-terminal-input.js` checks wheel scrolling, Page Up/Down,
 prompt history, Home/End and Space in a real terminal using synthetic console events
 and a temporary project. It requires a working Codex login for app startup but sends
@@ -35,6 +38,7 @@ no agent tasks. Physical touchpad gestures still need a manual check.
 - Explain the problem and resulting behavior.
 - Report check results and anything not checked. Automated CI runs tests and both offline previews across Linux and Windows on Node 22 and 24; linting, formatting, syntax, and repository hygiene run separately on Ubuntu with Node 22.
 - Update usage docs when behavior changes.
+- Keep the README, command reference, walkthrough, and recovery guidance consistent. Document handoff context, task-boundary corrections, review semantics, and session sharing. Update the [Markdown export contract](docs/MARKDOWN_SAVING_CONTRACT.md) when exports change. Historical audits must retain their original scope and date.
 - Exclude generated output, local state, installed dependencies, and secrets.
 
 ## Security-sensitive changes

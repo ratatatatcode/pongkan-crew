@@ -1,9 +1,3 @@
-export function isCasualMessage(text) {
-  return /^(?:hi|hello|hey|good morning|good afternoon|good evening|thanks|thank you|ok|okay|got it|nothing|no work(?: requested)?)[\s!.]*$/i.test(
-    text.trim(),
-  );
-}
-
 export function clarificationContext(answers) {
   return (
     '\n\nUser clarification answers for this assignment:\n' +
@@ -12,9 +6,7 @@ export function clarificationContext(answers) {
   );
 }
 
-export function workPolicy(enabled, casual = false) {
-  if (casual)
-    return '\nCASUAL CONVERSATION\nGive a brief, natural reply to this greeting or acknowledgement. Do not use tools, invent work, provide a completion or handoff report, or ask a blocking task question. Do not emit PONGKAN_QUESTION. No project work is requested.\n';
+export function workPolicy(enabled) {
   return (
     '\nWORKING WITH THE USER\n' +
     (enabled !== false

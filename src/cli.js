@@ -16,6 +16,7 @@ import { enableWindowsMouse, connectWindowsInput } from './windows-input.js';
 import { runWorker } from './scheduler.js';
 import { answerShortcut } from './answer-shortcut.js';
 import { TerminalRenderer, scheduleRender } from './terminal-renderer.js';
+import { sourceChanged } from './source-version.js';
 
 const args = process.argv.slice(2);
 const help = `Pongkan Crew — folder-specific Codex teammates
@@ -99,7 +100,7 @@ async function main() {
     }
     return;
   }
-  if (crew.queue.paused) app.notice = 'Saved tasks are paused. /queue list to inspect; /queue resume to continue.';
+  if (crew.queue.paused) app.notice = 'Saved work is paused. /queue list to inspect; /queue resume to dispatch.';
   const terminal = new TerminalRenderer(process.stdout);
   let outputBlocked = false;
   process.stdout.on('drain', () => {
@@ -135,6 +136,8 @@ async function main() {
     app.notice = `Task ${task.id}: ${task.status}${crew.queue.paused ? '; /queue resume to start' : ''}`;
   };
   let ticker;
+  const changed = sourceChanged();
+  let nextVersionCheck = Date.now() + 5000;
   let nextTipRotation = Date.now() + 30000;
   app.quit = async () => {
     if (closing) return;
@@ -234,8 +237,15 @@ async function main() {
         } else cycle(app, key.shift ? -1 : 1);
       } else if (key.shift && key.name === 'left') {
         const text = input.join('').trim();
-        if (text && app.view !== 'activity') {
-          queuePrompt(app, text);
+        if (text) {
+          const queued = queuePrompt(app, text);
+          if (queued?.then)
+            void queued
+              .then(() => render())
+              .catch(error => {
+                app.notice = error.message;
+                render();
+              });
           history.add(text);
           setInput('');
         }
@@ -294,6 +304,17 @@ async function main() {
   process.on('SIGTERM', app.quit);
   process.on('SIGINT', app.quit);
   ticker = setInterval(() => {
+    if (Date.now() >= nextVersionCheck) {
+      nextVersionCheck = Date.now() + 5000;
+      try {
+        if (!crew.codeChanged && changed()) {
+          crew.codeChanged = true;
+          crew.notify('Crew code changed on disk. Restart to load the update.');
+        }
+      } catch {
+        /* A transient update may temporarily remove a source file. */
+      }
+    }
     try {
       crew.scheduler.tick();
     } catch (error) {

@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Crew } from '../src/crew.js';
+import { Crew } from './helpers/crew-fixture.js';
 import { execute, HELP, queuePrompt } from '../src/commands.js';
 import { screen } from '../src/ui.js';
 
 function setup(t) {
   const folder = mkdtempSync(join(tmpdir(), 'pongkan-controls-'));
   t.after(() => rmSync(folder, { recursive: true, force: true }));
-  const crew = new Crew(folder);
+  const crew = new Crew(t, folder);
   return { crew, selected: 'chief', panel: null, notice: '', scroll: 0, send() {}, quit() {} };
 }
 
@@ -62,7 +62,7 @@ test('new-all opens fresh saved chats for the whole crew and preserves previous 
     assert.equal(chat.threadId, null);
     assert.ok(app.crew.state.activeConversations[member.name]);
   }
-  const restored = new Crew(app.crew.folder);
+  const restored = new Crew(t, app.crew.folder);
   assert.equal(restored.member('chief').messages[0].text, 'Keep legacy history');
   assert.equal(restored.conversations.get(old.id).messages[0].text, 'Keep named history');
   assert.deepEqual(restored.state.activeConversations, app.crew.state.activeConversations);
@@ -99,7 +99,7 @@ test('crew controls persist names, roles and permissions and retain an active se
   execute(app, '/crew rename designer artist');
   execute(app, '/chat artist');
   assert.equal(app.selected, 'artist');
-  assert.equal(new Crew(app.crew.folder).member('artist').role, 'Design terminal layouts');
+  assert.equal(new Crew(t, app.crew.folder).member('artist').role, 'Design terminal layouts');
   assert.equal(app.crew.member('artist').writable, true);
   execute(app, '/crew remove artist');
   assert.equal(app.selected, 'chief');
@@ -156,7 +156,10 @@ test('activity and chat switches preserve selected teammate and do not send prom
     assert.equal(app.selected, 'researcher');
     assert.equal(app.panel, null);
   }
-  assert.throws(() => execute(app, 'accidental message'), /\/chat/);
+  app.crew.queue.drain = () => {};
+  execute(app, 'What is the current status?');
+  assert.equal(app.view, 'group');
+  assert.equal(app.crew.discussions.current.messages.at(-1).text, 'What is the current status?');
   execute(app, '/switch chat');
   assert.equal(app.view, 'chat');
   execute(app, '/activity');

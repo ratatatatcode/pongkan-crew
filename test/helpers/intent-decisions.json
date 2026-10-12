@@ -1,0 +1,306 @@
+{
+  "queue shortcut submits a follow-up and resumes a paused crew without commands": [
+    {
+      "action": "status"
+    }
+  ],
+  "directed correction reaches the running writer on continuation, not a discussion": [
+    {
+      "action": "correct",
+      "target": "developer"
+    }
+  ],
+  "activity and chat switches preserve selected teammate and do not send prompts": [
+    {
+      "action": "discuss"
+    }
+  ],
+  "messages sent during a reply stay queued until the original prompt finishes": [
+    {
+      "action": "status",
+      "target": "developer"
+    }
+  ],
+  "plain follow-ups in a paused discussion are saved and queue read-only responses": [
+    {
+      "action": "status"
+    }
+  ],
+  "ordinary Crew Chat follow-ups retain prior findings across restart": [
+    {
+      "action": "discuss"
+    }
+  ],
+  "plain request executes: Okay, proceed with fixing all those issues. Test. Optimize.": [
+    {
+      "action": "execute"
+    }
+  ],
+  "plain request executes: Can you build a staff access page?": [
+    {
+      "action": "execute"
+    }
+  ],
+  "plain request executes: Go ahead with what we agreed.": [
+    {
+      "action": "execute"
+    }
+  ],
+  "plain request executes: Please implement it now.": [
+    {
+      "action": "execute"
+    }
+  ],
+  "plain request executes: Do it.": [
+    {
+      "action": "execute"
+    }
+  ],
+  "plain request executes: Replace show and hide word with better wording like show summary/summaries and so on.": [
+    {
+      "action": "execute"
+    }
+  ],
+  "Crew Chat proceed creates a workflow with the discussed plan": [
+    {
+      "action": "execute"
+    }
+  ],
+  "plain request executes: I said replace and you didnt do anything why is that": [
+    {
+      "action": "execute"
+    }
+  ],
+  "status gets one lead reply: What did you guys update?": [
+    {
+      "action": "status"
+    }
+  ],
+  "Crew Chat task commands include history and execution cannot interrupt a discussion": [
+    {
+      "action": "execute"
+    }
+  ],
+  "status gets one lead reply: Status": [
+    {
+      "action": "status"
+    }
+  ],
+  "new in Crew Chat opens a blank conversation without clearing individual chats": [
+    {
+      "action": "discuss"
+    }
+  ],
+  "status gets one lead reply: Are you done?": [
+    {
+      "action": "status"
+    }
+  ],
+  "status gets one lead reply: Okay, what have you finished?": [
+    {
+      "action": "status"
+    }
+  ],
+  "explicit share creates a persistent read-only duo with only the selected latest exchange": [
+    {
+      "action": "discuss"
+    }
+  ],
+  "plain question stays a discussion: How would you implement access control?": [
+    {
+      "action": "discuss"
+    }
+  ],
+  "plain question stays a discussion: Can you explain how to fix this?": [
+    {
+      "action": "discuss"
+    }
+  ],
+  "plain question stays a discussion: What do you think about badges?": [
+    {
+      "action": "discuss"
+    }
+  ],
+  "only explicit sharing phrases route private context and named chats control the source": [
+    {
+      "action": "discuss"
+    },
+    {
+      "action": "share",
+      "target": "reviewer",
+      "goal": "for review"
+    }
+  ],
+  "plain question stays a discussion: Don't implement anything yet; discuss the options.": [
+    {
+      "action": "discuss"
+    }
+  ],
+  "go ahead during discussion waits for its final findings without another command": [
+    {
+      "action": "execute"
+    }
+  ],
+  "mentions open shared chat and route a read-only reply; unknown mentions leave state intact": [
+    {
+      "action": "discuss",
+      "target": "developer"
+    }
+  ],
+  "execution request is visible immediately while earlier discussion replies finish": [
+    {
+      "action": "execute"
+    }
+  ],
+  "directed wording correction queues for the writer (execute)": [
+    {
+      "action": "correct",
+      "target": "developer"
+    }
+  ],
+  "shared chat continues with remaining participants after a teammate is removed": [
+    {
+      "action": "discuss"
+    }
+  ],
+  "directed wording correction queues for the writer (queuePrompt)": [
+    {
+      "action": "correct",
+      "target": "developer"
+    }
+  ],
+  "directed questions stay read-only and invalid mentions do not resume work": [
+    {
+      "action": "discuss",
+      "target": "developer"
+    }
+  ],
+  "directed edit after the writer finished queues execution instead of read-only chat": [
+    {
+      "action": "execute",
+      "target": "developer"
+    }
+  ],
+  "shared participants validate and follow teammate renames": [
+    {
+      "action": "discuss"
+    }
+  ],
+  "directed edit during discussion waits for final findings and survives restart": [
+    {
+      "action": "execute",
+      "target": "developer"
+    }
+  ],
+  "directed clarification answer unblocks the addressed writer instead of steering it": [
+    {
+      "action": "answer",
+      "target": "developer"
+    }
+  ],
+  "new Crew Chat message stays visible below a previous workflow": [
+    {
+      "action": "discuss"
+    }
+  ],
+  "continue resumes failed step and preserves completed work and task IDs": [
+    {
+      "action": "resume"
+    }
+  ],
+  "active corrections reach the writer while questions stay read-only": [
+    {
+      "action": "correct"
+    },
+    {
+      "action": "status"
+    }
+  ],
+  "plain answer unblocks the waiting task in this conversation": [
+    {
+      "action": "answer"
+    }
+  ],
+  "new implementation after writer steps finish starts a new workflow (reviewing)": [
+    {
+      "action": "execute"
+    }
+  ],
+  "new implementation after writer steps finish starts a new workflow (failed)": [
+    {
+      "action": "execute"
+    }
+  ],
+  "continue does not resume another group or repeat a completed workflow": [
+    {
+      "action": "resume"
+    }
+  ],
+  "plain Enter does not wake paused work from unrelated conversations": [
+    {
+      "action": "execute"
+    }
+  ],
+  "workflow resume executes only unfinished turns after a real runner failure": [
+    {
+      "action": "execute"
+    },
+    {
+      "action": "resume"
+    }
+  ],
+  "plain messages in personal chat start dispatch without resuming another chat": [
+    {
+      "action": "execute"
+    },
+    {
+      "action": "correct"
+    }
+  ],
+  "continue after restart preserves completed workflow steps": [
+    {
+      "action": "resume"
+    }
+  ],
+  "queued execution survives restart and waits for the resumed discussion": [
+    {
+      "action": "execute"
+    },
+    {
+      "action": "resume"
+    }
+  ],
+  "a plain yes accepts the discussed plan and does not repeat completed work": [
+    {
+      "action": "execute"
+    },
+    {
+      "action": "discuss"
+    }
+  ],
+  "status questions and prefixed questions never become workflow corrections": [
+    {
+      "action": "status"
+    },
+    {
+      "action": "status"
+    },
+    {
+      "action": "status"
+    },
+    {
+      "action": "discuss"
+    }
+  ],
+  "named shared chats isolate discussion history when reopening older topics": [
+    {
+      "action": "discuss"
+    },
+    {
+      "action": "discuss"
+    },
+    {
+      "action": "resume"
+    }
+  ]
+}

@@ -62,11 +62,40 @@ export function validateState(state) {
   if (typeof state.contextOptimization !== 'boolean') invalid();
   if (state.markdownEnabled === undefined) state.markdownEnabled = false;
   if (typeof state.markdownEnabled !== 'boolean') invalid();
-  for (const field of ['archives', 'tasks', 'workflows', 'discussions', 'presets', 'conversations', 'schedules']) {
+  for (const field of [
+    'archives',
+    'tasks',
+    'workflows',
+    'discussions',
+    'presets',
+    'conversations',
+    'schedules',
+    'inputs',
+  ]) {
     if (state[field] === undefined) state[field] = [];
     if (!Array.isArray(state[field])) invalid();
   }
   if (state.activeConversations === undefined) state.activeConversations = {};
+  if (
+    new Set(state.inputs.map(input => input?.id)).size !== state.inputs.length ||
+    state.inputs.some(
+      input =>
+        !input ||
+        !ID.test(input.id) ||
+        typeof input.text !== 'string' ||
+        !input.text.trim() ||
+        !['queued', 'routing', 'dispatched', 'blocked', 'interrupted'].includes(input.status) ||
+        !['chat', 'group'].includes(input.view) ||
+        typeof input.selected !== 'string' ||
+        !Number.isFinite(input.createdAt) ||
+        (input.conversationId != null && !ID.test(input.conversationId)) ||
+        ['workflowId', 'taskId', 'discussionId', 'pendingDiscussionId'].some(
+          field => input[field] != null && !ID.test(input[field]),
+        ) ||
+        ['error', 'question'].some(field => input[field] != null && typeof input[field] !== 'string'),
+    )
+  )
+    invalid();
   if (
     !state.activeConversations ||
     typeof state.activeConversations !== 'object' ||
@@ -171,6 +200,7 @@ export function validateState(state) {
         !d ||
         !ID.test(d.id) ||
         !['working', 'completed', 'failed', 'cancelled', 'interrupted'].includes(d.status) ||
+        (d.pendingExecution !== undefined && (typeof d.pendingExecution !== 'string' || !d.pendingExecution.trim())) ||
         !Array.isArray(d.taskIds) ||
         !Array.isArray(d.messages) ||
         (d.participants !== undefined &&
@@ -223,6 +253,10 @@ export function validateState(state) {
   )
     invalid();
   for (const flow of state.workflows) {
+    if (flow.sourceInputId != null && !ID.test(flow.sourceInputId)) invalid();
+    if (flow.requiresWrite !== undefined && typeof flow.requiresWrite !== 'boolean') invalid();
+    if (flow.requestGoal !== undefined && typeof flow.requestGoal !== 'string') invalid();
+    if (flow.outcome !== undefined && !['met', 'needs_work', 'unverified'].includes(flow.outcome)) invalid();
     if (
       !flow ||
       !ID.test(flow.id) ||
@@ -266,6 +300,19 @@ export function validateState(state) {
   )
     invalid();
   for (const task of state.tasks) {
+    if (task.sourceInputId != null && !ID.test(task.sourceInputId)) invalid();
+    if (
+      task.inspections !== undefined &&
+      (!Array.isArray(task.inspections) ||
+        task.inspections.some(
+          inspection =>
+            !inspection ||
+            typeof inspection.kind !== 'string' ||
+            typeof inspection.action !== 'string' ||
+            typeof inspection.success !== 'boolean',
+        ))
+    )
+      invalid();
     if (
       !task ||
       !ID.test(task.id) ||
@@ -273,13 +320,15 @@ export function validateState(state) {
       typeof task.text !== 'string' ||
       !TASK_STATUS.has(task.status) ||
       !Number.isFinite(task.createdAt) ||
-      !['message', 'plan', 'work', 'review', 'summary', 'coordination', 'revision'].includes(task.kind) ||
-      (task.discussionId && (!discussions.has(task.discussionId) || task.readOnly !== true)) ||
+      !['message', 'direct', 'plan', 'work', 'review', 'summary', 'coordination', 'revision'].includes(task.kind) ||
+      (task.discussionId &&
+        (!discussions.has(task.discussionId) || (task.kind !== 'direct' && task.readOnly !== true))) ||
       (task.workflowId && !flows.has(task.workflowId)) ||
       (task.dependsOn && (!ids.has(task.dependsOn) || task.dependsOn === task.id)) ||
       (['running', 'queued', 'waiting'].includes(task.status) && !state.members.some(m => m.name === task.member))
     )
       invalid();
+    if (task.dispatchPaused !== undefined && typeof task.dispatchPaused !== 'boolean') invalid();
     if (task.result !== undefined && typeof task.result !== 'string') invalid();
     if (task.displayText !== undefined && typeof task.displayText !== 'string') invalid();
     if (

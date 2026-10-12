@@ -96,6 +96,7 @@ const COMMANDS = [
   '/workflow list',
   '/workflow show',
   '/workflow cancel',
+  '/workflow resume',
   '/workflow retry',
   '/preset list',
   '/preset show',

@@ -3,7 +3,8 @@ import { writeMarkdown } from './markdown-write.js';
 import { TERMINAL } from './tasks.js';
 export { markdownDirectory } from './markdown-write.js';
 const label = name => String(name).replace(/^./, first => first.toUpperCase());
-const section = (name, text) => (text === undefined || text === '' ? '' : `\n## ${name}\n\n${text}\n`);
+const markdownSection = (name, text, depth) =>
+  text === undefined || text === '' ? '' : `\n${'#'.repeat(depth)} ${name}\n\n${text}\n`;
 function snapshot(kind, record) {
   if (kind === 'workflow')
     return {
@@ -14,6 +15,9 @@ function snapshot(kind, record) {
       text: record.text,
       error: record.error,
       result: record.result,
+      outcome: record.outcome,
+      criteria: record.criteria,
+      requests: record.requests,
       tasks: record.tasks.map(task => snapshot('task', task)),
     };
   if (kind === 'discussion')
@@ -39,15 +43,29 @@ function snapshot(kind, record) {
       .concat([['files', record.diff?.files]]),
   );
 }
-function render(kind, record, marker) {
-  let text = `${marker}\n# ${label(kind)} ${record.id}\n\nStatus: ${record.status}\n`;
+function render(kind, record, marker, depth = 1) {
+  const section = (name, text) => markdownSection(name, text, depth + 1);
+  let text = `${marker}\n${'#'.repeat(depth)} ${label(kind)} ${record.id}\n\nStatus: ${record.status}\n`;
   for (const key of ['member', 'kind', 'workflowId', 'discussionId'])
     if (record[key]) text += `${label(key)}: ${key === 'member' ? label(record[key]) : record[key]}\n`;
   for (const key of ['createdAt', 'startedAt', 'finishedAt'])
     if (Number.isFinite(record[key])) text += `${label(key)}: ${new Date(record[key]).toISOString()}\n`;
   if (kind === 'workflow') {
     text += section('Goal', record.text) + section('Error', record.error);
-    for (const task of record.tasks) text += '\n---\n' + render('task', task, '');
+    for (const request of record.requests || [])
+      text += section(
+        'Original user request',
+        `${request.text}\n\nSubmitted: ${new Date(request.createdAt).toISOString()} (${request.submission === 'shift-left' ? 'Shift+Left' : request.submission === 'enter' ? 'Enter' : 'not recorded'})`,
+      );
+    text += section('Requested outcome', record.outcome?.replace('_', ' '));
+    if (record.criteria?.length)
+      text += section(
+        'Outcome evidence',
+        record.criteria
+          .map(criterion => `- ${criterion.requirement}: ${criterion.status}. ${criterion.evidence}`)
+          .join('\n'),
+      );
+    for (const task of record.tasks) text += '\n---\n' + render('task', task, '', depth + 1);
     text += section('Final summary', record.result);
   } else if (kind === 'discussion') {
     const messages = (record.messages || [])
@@ -56,7 +74,7 @@ function render(kind, record, marker) {
     for (const { message } of messages) {
       let metadata = '';
       if (message.role === 'user' && message.submission) {
-        metadata += `Submitted with: ${message.submission === 'shift-left' ? 'Shift+Left (queue and resume dispatch)' : 'Enter (preserve queue pause)'}\n`;
+        metadata += `Submitted with: ${message.submission === 'shift-left' ? 'Shift+Left' : 'Enter'}\n`;
         if (Number.isFinite(message.submittedAt))
           metadata += `Submitted: ${new Date(message.submittedAt).toISOString()}\n`;
         if (Number.isFinite(message.startedAt)) metadata += `Started: ${new Date(message.startedAt).toISOString()}\n`;
@@ -96,7 +114,14 @@ function* exportsFor(state) {
     for (const source of sources) {
       const tasks = groups.get(source.id) || [];
       if (!TERMINAL.has(source.status) || tasks.some(task => !TERMINAL.has(task.status))) continue;
-      yield { kind, record: snapshot(kind, { ...source, tasks }), obsolete: tasks.map(task => `task-${task.id}`) };
+      const requests = (state.inputs || [])
+        .filter(input => input.workflowId === source.id)
+        .map(input => ({ text: input.text, createdAt: input.createdAt, submission: input.submission }));
+      yield {
+        kind,
+        record: snapshot(kind, { ...source, tasks, requests }),
+        obsolete: tasks.map(task => `task-${task.id}`),
+      };
     }
   }
 }

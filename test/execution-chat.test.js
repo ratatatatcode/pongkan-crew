@@ -3,19 +3,74 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Crew } from '../src/crew.js';
-import { execute } from '../src/commands.js';
+import { Crew } from './helpers/crew-fixture.js';
+import { execute, queuePrompt } from '../src/commands.js';
 import { screen } from '../src/ui.js';
+
+test('directed correction reaches the running writer on continuation, not a discussion', async t => {
+  const folder = mkdtempSync(join(tmpdir(), 'pongkan-directed-correction-'));
+  let release;
+  let started;
+  const gate = new Promise(resolve => (release = resolve));
+  const ready = new Promise(resolve => (started = resolve));
+  const request = 'Replace Show and Hide with Show summary and Hide summary.';
+  let crew;
+  let writerTurns = 0;
+  crew = new Crew(t, folder, {
+    runner: async (args, prompt, event) => {
+      const task = crew.state.tasks.find(task => task.status === 'running');
+      let text = 'Checked.';
+      if (task.kind === 'plan')
+        text = JSON.stringify({ steps: [{ member: 'developer', task: 'Build the toggle' }], reviewer: 'reviewer' });
+      if (task.kind === 'work') {
+        writerTurns++;
+        assert.ok(args.includes('workspace-write'));
+        if (writerTurns === 1) {
+          started();
+          await gate;
+        } else {
+          assert.match(prompt, /Replace Show and Hide with Show summary and Hide summary/);
+          text = 'Updated the toggle labels.';
+        }
+      }
+      event({ type: 'item.completed', item: { type: 'agent_message', text } });
+    },
+  });
+  t.after(async () => {
+    release();
+    await crew.close();
+    rmSync(folder, { recursive: true, force: true });
+  });
+  const discussion = crew.discussions.newConversation();
+  const flow = crew.workflows.start('Build the toggle', { sourceDiscussionId: discussion.id });
+  await ready;
+  queuePrompt({ crew, view: 'group', selected: 'developer' }, `@developer ${request}`);
+  const writer = crew.state.tasks.find(task => task.workflowId === flow.id && task.kind === 'work');
+  assert.equal(writer.steering[0].appliedAt, undefined);
+  release();
+  await crew.workflows.settled(flow.id);
+  assert.equal(flow.status, 'completed');
+  assert.equal(writerTurns, 2);
+  assert.ok(writer.steering[0].appliedAt);
+  assert.equal(discussion.taskIds.length, 0);
+  const visible = screen(crew, 'developer', '', '', 140, 80, 0, null, { view: 'group' });
+  assert.doesNotMatch(visible, /queued correction/);
+  assert.match(visible, /Replace Show and Hide with Show summary and Hide summary/);
+});
 
 test('crew execution exchanges real replies and applies reviewer feedback before final review', async t => {
   const folder = mkdtempSync(join(tmpdir(), 'pongkan-execution-chat-'));
   t.after(() => rmSync(folder, { recursive: true, force: true }));
   const calls = [];
   let crew;
-  crew = new Crew(folder, {
+  crew = new Crew(t, folder, {
     runner: async (args, prompt, event) => {
       const task = crew.state.tasks.find(task => task.status === 'running');
       calls.push({ task: { ...task }, prompt, args });
+      if (task.workflowId) {
+        assert.equal(crew.member(task.member).progress.channel, 'group');
+        assert.ok(!args.includes('resume'), 'fresh group turns must not resume personal sessions');
+      }
       let text = 'Initial discussion.';
       if (task.kind === 'plan')
         text = JSON.stringify({ steps: [{ member: 'developer', task: 'Build navigation' }], reviewer: 'reviewer' });
@@ -36,6 +91,11 @@ test('crew execution exchanges real replies and applies reviewer feedback before
         text = 'Final review complete.';
       } else if (task.kind === 'summary') text = 'Completed with review feedback addressed.';
       event({ type: 'item.completed', item: { type: 'agent_message', text } });
+      if (task.kind === 'work') {
+        const live = screen(crew, 'developer', '', '', 120, 250, 0, null, { view: 'group' });
+        assert.match(live, /Chief, keyboard focus is preserved/);
+        assert.doesNotMatch(live, /Waiting for a turn|Summarize the completed work/);
+      }
     },
   });
   const discussion = crew.discussions.start('Plan navigation', 'developer');
@@ -54,7 +114,11 @@ test('crew execution exchanges real replies and applies reviewer feedback before
   assert.match(visible, /Developer, preserve keyboard focus/);
   assert.match(visible, /Developer, the Escape key needs handling/);
   assert.match(visible, /Reviewer, Escape handling is fixed and tested/);
-  const restored = new Crew(folder);
+  for (const member of crew.state.members) {
+    assert.equal(member.messages.length, 0, 'group execution must leave personal transcripts untouched');
+    assert.equal(member.threadId, null);
+  }
+  const restored = new Crew(t, folder);
   assert.equal(
     restored.state.tasks.filter(task => task.workflowId === flow.id && task.kind === 'coordination').length,
     2,
@@ -69,7 +133,7 @@ test('cancelling during an execution conversation prevents implementation and la
   const ready = new Promise(resolve => (started = resolve));
   const calls = [];
   let crew;
-  crew = new Crew(folder, {
+  crew = new Crew(t, folder, {
     runner: async (args, prompt, event, signal) => {
       const task = crew.state.tasks.find(task => task.status === 'running');
       calls.push(task.kind);
@@ -113,7 +177,7 @@ test('cancelling during an execution conversation prevents implementation and la
 test('Crew Chat stop follows discussion history and leaves unrelated workflows queued', async t => {
   const folder = mkdtempSync(join(tmpdir(), 'pongkan-execution-scope-'));
   t.after(() => rmSync(folder, { recursive: true, force: true }));
-  const crew = new Crew(folder);
+  const crew = new Crew(t, folder);
   crew.queue.pause();
   const first = crew.discussions.start('Plan navigation', 'developer');
   crew.discussions.stop();
@@ -125,4 +189,31 @@ test('Crew Chat stop follows discussion history and leaves unrelated workflows q
   assert.equal(unrelated.status, 'planning');
   assert.ok(crew.state.tasks.filter(task => task.workflowId === unrelated.id).every(task => task.status === 'queued'));
   await crew.close();
+});
+
+test('a reviewer assignment does not schedule feedback to itself', async t => {
+  const folder = mkdtempSync(join(tmpdir(), 'pongkan-self-feedback-'));
+  const crew = new Crew(t, folder, {
+    runner: async (args, prompt, event) => {
+      event({
+        type: 'item.completed',
+        item: {
+          type: 'agent_message',
+          text: prompt.includes('PONGKAN_PLAN')
+            ? JSON.stringify({ steps: [{ member: 'reviewer', task: 'Inspect the design' }], reviewer: 'reviewer' })
+            : 'Design inspected.',
+        },
+      });
+    },
+  });
+  t.after(async () => {
+    await crew.close();
+    rmSync(folder, { recursive: true, force: true });
+  });
+  const discussion = crew.discussions.start('Inspect design', 'reviewer');
+  await crew.queue.settled(discussion.taskIds.at(-1));
+  const flow = crew.workflows.start('Inspect design', { sourceDiscussionId: discussion.id });
+  await crew.workflows.settled(flow.id);
+  const tasks = crew.state.tasks.filter(task => task.workflowId === flow.id);
+  assert.ok(!tasks.some(task => task.exchange === 'feedback' || task.kind === 'revision'));
 });
