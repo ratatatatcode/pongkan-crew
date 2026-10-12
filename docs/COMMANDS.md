@@ -8,7 +8,7 @@ Changed records save as `task-<id>.md` or `discussion-<id>.md`. Continuations up
 
 Safe writing uses a PowerShell/.NET directory-lock helper on Windows and directory descriptors on Linux with `/proc/self/fd`. Other platforms currently report an unsupported-platform error when saving is enabled.
 
-[README](README.md) · [Todo website walkthrough](TODO_WEBSITE_WALKTHROUGH.md)
+[README](../README.md) · [Todo website walkthrough](TODO_WEBSITE_WALKTHROUGH.md)
 
 Enter commands **inside Pongkan Crew**, one message at a time, except for terminal commands below. Use names from your roster and replace uppercase placeholders with values shown by the app. `[Arguments]` are optional; omit the brackets.
 
