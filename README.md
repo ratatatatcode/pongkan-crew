@@ -47,13 +47,13 @@ Use `/folder` inside the app to confirm the target.
 
 ## Usage
 
-The default crew is **Chief, Researcher, Developer, and Reviewer**. Type normally and press Enter. Crew Chat sends plain messages directly to Chief; `@NAME` sends directly to that teammate. Individual Chat sends to the selected teammate.
+The default crew is **Chief, Researcher, Developer, and Reviewer**. Press **Tab / Shift+Tab** to cycle through teammates and Crew Chat. Press **F2 / Shift+F2** to switch among Chat, Crew Chat, and Activity. Type normally and press Enter. Crew Chat sends plain messages directly to Chief; `@NAME` sends directly to that teammate. Individual Chat sends to the selected teammate.
 
-| Where you type        | Who receives your message                               |
-| --------------------- | ------------------------------------------------------- |
-| Crew Chat or Activity | Your crew's designated lead (Chief in the default crew) |
-| Individual Chat       | The selected teammate                                   |
-| `@NAME MESSAGE`       | The named teammate, using shared Crew Chat context      |
+| Where you type        | Who receives your message                               | Sample usage                                  |
+| --------------------- | ------------------------------------------------------- | --------------------------------------------- |
+| Crew Chat or Activity | Your crew's designated lead (Chief in the default crew) | `Plan a todo app and have Reviewer check it.` |
+| Individual Chat       | The selected teammate                                   | `How does state persistence work?`            |
+| `@NAME MESSAGE`       | The named teammate, using shared Crew Chat context      | `@developer Implement the agreed layout.`     |
 
 Use your own words; no specific verb or keyword is required. Crew interprets each message and routes it to a reply, assignment, discussion, or workflow within the crew's permissions. In Crew Chat, a natural follow-up such as `Proceed with what you've discussed.` can start a coordinated workflow using the recent discussion as context. Use `/discuss`, `/task`, or `/crew-task` when you prefer an explicit command.
 
@@ -89,10 +89,12 @@ Crew Chat and individual chats use separate sessions. A teammate's individual ch
 
 ### Optional `/task` and `/crew-task` overrides
 
-| Command             | Goal                                              | Crew Chat context                                   | Requirement                                                                   | Opens after starting                                           |
-| ------------------- | ------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `/task GOAL`        | Required                                          | Included when run from Crew Chat; otherwise omitted | No discussion required                                                        | Crew Chat when started there; otherwise lead's individual Chat |
-| `/crew-task [GOAL]` | Optional; without one, implements the agreed plan | Always uses the latest discussion, from any view    | A saved Crew Chat discussion; any active discussion must finish or be stopped | Crew Chat                                                      |
+You can ask for work in ordinary language instead of typing either command. Crew interprets the request and routes it to a reply or coordinated workflow as appropriate. For example, ask Chief to build a feature and have Reviewer check it; Crew can plan and assign the work automatically. Use `/task` or `/crew-task` when you want to explicitly choose a workflow path.
+
+| Command             | Goal                                              | Crew Chat context                                   | Requirement                                                                   | Opens after starting                                           | Sample usage                                        |
+| ------------------- | ------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------- |
+| `/task GOAL`        | Required                                          | Included when run from Crew Chat; otherwise omitted | No discussion required                                                        | Crew Chat when started there; otherwise lead's individual Chat | `/task Add filters and ask Reviewer to check them.` |
+| `/crew-task [GOAL]` | Optional; without one, implements the agreed plan | Always uses the latest discussion, from any view    | A saved Crew Chat discussion; any active discussion must finish or be stopped | Crew Chat                                                      | `/crew-task` (use the saved discussion)             |
 
 These optional overrides create a coordinated workflow in which the lead plans assignments, requests an independent review, and summarizes the result. Use `/task` for a standalone goal and `/crew-task` to carry the current Crew Chat discussion into implementation. Plans, live teammate replies, review, and summaries appear in the originating Crew Chat. Future assignments and task records appear in Activity.
 
@@ -106,27 +108,27 @@ Use `/crew-task` after the discussion finishes to execute with its shared findin
 
 ### Adding `--isolated`
 
-| Command                        | Behavior                                                                                                                 |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `/task --isolated GOAL`        | Runs the goal in a separate Git worktree. Includes Crew Chat history when started from Crew Chat.                        |
-| `/crew-task --isolated [GOAL]` | Runs the current Crew Chat plan in a separate Git worktree, with an optional goal override. Requires a saved discussion. |
+| Command                        | Behavior                                                                                                                 | Sample usage                                        |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- |
+| `/task --isolated GOAL`        | Runs the goal in a separate Git worktree. Includes Crew Chat history when started from Crew Chat.                        | `/task --isolated Add a remaining count.`           |
+| `/crew-task --isolated [GOAL]` | Runs the current Crew Chat plan in a separate Git worktree, with an optional goal override. Requires a saved discussion. | `/crew-task --isolated` (uses the saved discussion) |
 
 `--isolated` starts from committed `HEAD` and creates fresh individual conversations for the workflow. Existing private-chat history is not carried over; explicitly supplied goals and Crew Chat context still are. Commit the changes you want included before starting. The branch and worktree remain available for inspection afterward; the command does not automatically commit, merge, push, or open a PR.
 
-| Action                          | Command                                                   |
-| ------------------------------- | --------------------------------------------------------- |
-| Select a teammate               | `/chat developer`                                         |
-| Assign work directly            | `/send developer GOAL`                                    |
-| Follow progress                 | `/activity`                                               |
-| Inspect changes                 | `/changes`, `/diff`                                       |
-| Choose a specialist crew        | `/preset list`, `/preset apply web`                       |
-| Start a separate conversation   | `/conversation new developer TITLE`                       |
-| Run an isolated workflow        | `/task --isolated GOAL`                                   |
-| Read a GitHub issue or PR       | `/github issue OWNER/REPO 12`, `/github pr OWNER/REPO 34` |
-| Implement a GitHub issue        | `/github task OWNER/REPO 12 --isolated`                   |
-| Save future results as Markdown | `/markdown on`                                            |
-| Stop selected work              | `/stop`                                                   |
-| Search command help             | `/help QUERY`                                             |
+| Action                          | Sample usage                                                |
+| ------------------------------- | ----------------------------------------------------------- |
+| Select a teammate               | `/chat developer`                                           |
+| Assign work directly            | `/send developer Add a remaining count.`                    |
+| Follow progress                 | `/activity`                                                 |
+| Inspect changes                 | `/changes` or `/diff`                                       |
+| Choose a specialist crew        | `/preset list`, then `/preset apply web`                    |
+| Start a separate conversation   | `/conversation new developer Todo polish`                   |
+| Run an isolated workflow        | `/task --isolated Add a remaining count.`                   |
+| Read a GitHub issue or PR       | `/github issue OWNER/REPO 12` or `/github pr OWNER/REPO 34` |
+| Implement a GitHub issue        | `/github task OWNER/REPO 12 --isolated`                     |
+| Save future results as Markdown | `/markdown on`                                              |
+| Stop selected work              | `/stop`                                                     |
+| Search command help             | `/help permissions`                                         |
 
 GitHub commands require an authenticated GitHub CLI (`gh`). They do not automatically commit, push, or open PRs. Isolated workflows start from committed `HEAD` and retain their branches and worktrees for review.
 
@@ -134,24 +136,24 @@ GitHub commands require an authenticated GitHub CLI (`gh`). They do not automati
 
 Rotating tips appear below the command/status line while the CLI is open.
 
-| Key                       | Action                                                                     |
-| ------------------------- | -------------------------------------------------------------------------- |
-| Tab / Shift+Tab           | Cycle teammates and Crew Chat                                              |
-| F2 / Shift+F2             | Switch views                                                               |
-| Mouse wheel / PgUp / PgDn | Scroll responses, activity or panels                                       |
-| Up / Down                 | Move through input lines; browse prompt history beyond the first/last line |
-| Left / Right              | Move the cursor across input line boundaries                               |
-| Home / End                | Jump to the current input line's beginning/end                             |
-| Ctrl+Home / Ctrl+End      | Jump to the entire prompt's beginning/end                                  |
-| Ctrl+P / Ctrl+N           | Browse prompt history from anywhere in the input                           |
-| Shift+Left                | Send the typed prompt; resume only its conversation                        |
-| Shift+Right               | Fill in the answer command for a waiting question; press again to cycle    |
-| Enter                     | Send the full prompt; resume only its conversation                         |
-| Shift+Enter               | Insert a new line without sending                                          |
-| Esc                       | Close a panel or clear input                                               |
-| ? / F1                    | Open help                                                                  |
-| Ctrl+K                    | Stop selected work                                                         |
-| Ctrl+C                    | Exit and stop work                                                         |
+| Key                       | Action                                                                     | Sample usage                                      |
+| ------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------- |
+| Tab / Shift+Tab           | Cycle teammates and Crew Chat                                              | Press Tab until Developer is selected.            |
+| F2 / Shift+F2             | Switch views                                                               | Press F2 to open Activity.                        |
+| Mouse wheel / PgUp / PgDn | Scroll responses, activity or panels                                       | Page up to read earlier Crew Chat messages.       |
+| Up / Down                 | Move through input lines; browse prompt history beyond the first/last line | Press Up to recall an earlier prompt.             |
+| Left / Right              | Move the cursor across input line boundaries                               | Move Left to edit the previous line.              |
+| Home / End                | Jump to the current input line's beginning/end                             | Press Home to edit from the line start.           |
+| Ctrl+Home / Ctrl+End      | Jump to the entire prompt's beginning/end                                  | Press Ctrl+Home to edit from the prompt start.    |
+| Ctrl+P / Ctrl+N           | Browse prompt history from anywhere in the input                           | Press Ctrl+P for the previous prompt.             |
+| Shift+Left                | Send the typed prompt; resume only its conversation                        | Press Shift+Left to send the current message.     |
+| Shift+Right               | Fill in the answer command for a waiting question; press again to cycle    | Press Shift+Right to fill a waiting answer.       |
+| Enter                     | Send the full prompt; resume only its conversation                         | Type a message, then press Enter to send it.      |
+| Shift+Enter               | Insert a new line without sending                                          | Press Shift+Enter to continue a multiline prompt. |
+| Esc                       | Close a panel or clear input                                               | Press Esc to close the open settings panel.       |
+| ? / F1                    | Open help                                                                  | Press ? to see the help screen.                   |
+| Ctrl+K                    | Stop selected work                                                         | Press Ctrl+K to stop the selected task.           |
+| Ctrl+C                    | Exit and stop work                                                         | Press Ctrl+C to exit the CLI.                     |
 
 Mouse wheel scrolls responses, activity and panels while the input stays fixed. Long input uses up to five visible lines, including a `[1,234 characters hidden]` marker when collapsed. The visible text follows the cursor; Enter and Shift+Left send the full input without a character limit imposed by Crew. The footer leaves one blank line at the bottom.
 
