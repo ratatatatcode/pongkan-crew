@@ -96,7 +96,7 @@ export function screen(
   ).flatMap(m => {
     const label = m.role === 'user' ? 'You' : m.role === 'assistant' ? nameLabel(selected) : 'System';
     const body = messageBody(m, readingWidth, crew.folder, selected);
-    return [row(label, m.role), ...body, row(''), row('')];
+    return [row(label, m.role), row(''), ...body, row(''), row('')];
   });
   if (!conversation.length)
     conversation.push(
@@ -145,6 +145,7 @@ export function screen(
           row(''),
           ...discussion.messages.flatMap(m => [
             row(nameLabel(m.speaker), m.role),
+            row(''),
             ...messageBody(m, readingWidth, crew.folder, m.speaker),
             row(''),
             row(''),
@@ -178,18 +179,6 @@ export function screen(
       if (discussion.status === 'interrupted')
         content.push(row('App restarted. Start again with /discuss TOPIC.', 'muted'));
     }
-    // Keep prior handoffs above the current discussion so the bottom follows replies.
-    const startedAt = discussion?.createdAt ?? Infinity;
-    content = [
-      ...workflowFeed(crew, readingWidth, crew.state.activeGroupConversation, {
-        before: startedAt,
-        conversation: true,
-      }),
-      row(''),
-      ...content,
-      row(''),
-      ...workflowFeed(crew, readingWidth, crew.state.activeGroupConversation, { since: startedAt, conversation: true }),
-    ];
   }
   if (view === 'activity') {
     const events = crew.activityEvents?.length ? crew.activityEvents : crew.activity.map(text => ({ text }));
@@ -198,7 +187,10 @@ export function screen(
       const style = activityStyle(event);
       return [
         row(`${stamp}  ${style.label}`, style.tone),
-        ...wrap(event.text, contentWidth - 4).map(text => row(text, style.tone)),
+        ...renderMarkdown(event.text, readingWidth, { folder: crew.folder }).map(item => ({
+          ...item,
+          tone: item.tone === 'body' ? style.tone : item.tone,
+        })),
         ...(event.detail ? wrap(event.detail, contentWidth - 6, true).map(text => row('  ' + text, 'muted')) : []),
         row(''),
       ];
@@ -314,7 +306,7 @@ export function screen(
           : view === 'activity'
             ? `  TEAM ACTIVITY  ·  ${activityScroll ? 'History / PgDn: newer' : 'Live / following latest'}  ·  PgUp/PgDn Scroll  ·  /chat Return`
             : view === 'group'
-              ? `  CREW CHAT · ${crew.state.conversations?.find(c => c.id === crew.state.activeGroupConversation)?.title || 'Discussion and workflow feed'} · /crew-task Execute · /stop End`
+              ? `  CREW CHAT · ${crew.state.conversations?.find(c => c.id === crew.state.activeGroupConversation)?.title || 'Crew conversation'} · /crew-task Execute · /activity Tasks`
               : `  ${nameLabel(selected)}  ·  ${status}  ·  Model: ${member.model || 'Codex default'}${elapsed === null ? '' : `  ·  ${member.status === 'working' ? '' : 'last run '}${elapsed}s`}${activeChat ? ` · ${activeChat.title} (${activeChat.id})` : ''}${scroll ? '  ·  History / PgDn: newer' : ''}`,
         width,
       ),

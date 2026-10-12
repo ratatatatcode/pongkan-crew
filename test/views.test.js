@@ -62,10 +62,11 @@ test('new Crew Chat replies and progress remain visible after a long older workf
     createdAt: 300,
   });
   const later = screen(crew, 'chief', '', '', 100, 60, 0, null, { view: 'group' });
-  assert.ok(later.indexOf('Hello, I coordinate the crew') < later.indexOf('New workflow reply'));
+  assert.match(later, /Hello, I coordinate the crew/);
+  assert.doesNotMatch(later, /New workflow reply|Historical summary/);
 });
 
-test('Crew Chat shows full workflow replies and readable plans while Activity keeps task records', t => {
+test('Crew Chat excludes workflow replies while Activity keeps task records', t => {
   const crew = new Crew(folder(t));
   crew.state.workflows.push({ id: 'flow-chat', lead: 'chief', text: 'Build the page', createdAt: 1 });
   const plan = JSON.stringify({ steps: [{ member: 'developer', task: 'Build the page' }], reviewer: 'reviewer' });
@@ -90,15 +91,23 @@ test('Crew Chat shows full workflow replies and readable plans while Activity ke
       result: 'Implemented the page. '.repeat(50) + 'FINAL RESPONSE MARKER',
       createdAt: 3,
     },
+    {
+      id: 'queued-chat',
+      workflowId: 'flow-chat',
+      member: 'reviewer',
+      kind: 'review',
+      status: 'queued',
+      text: 'Review the page',
+      createdAt: 4,
+    },
   );
   const group = screen(crew, 'chief', '', '', 110, 100, 0, null, { view: 'group' });
-  assert.match(group, /Proposed plan/);
-  assert.match(group, /Developer/);
-  assert.match(group, /FINAL RESPONSE MARKER/);
+  assert.doesNotMatch(group, /Proposed plan|FINAL RESPONSE MARKER|Waiting for a turn/);
   assert.doesNotMatch(group, /Workflow flow-chat|task work-chat|PONGKAN_PLAN|Internal assignment|WORKFLOW HANDOFFS/);
   const activity = screen(crew, 'chief', '', '', 110, 100, 0, null, { view: 'activity' });
   assert.match(activity, /Workflow flow-chat/);
   assert.match(activity, /task work-chat/);
+  assert.match(activity, /review · queued/);
 });
 test('folder snapshots show text additions, deletions and modifications without Git', t => {
   const path = folder(t);
