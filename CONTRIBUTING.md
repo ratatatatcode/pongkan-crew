@@ -4,7 +4,7 @@ Keep changes focused, explain their effect, and report your checks.
 
 ## Before you start
 
-- Read the [README](README.md) and [command reference](COMMANDS.md).
+- Read the [README](README.md) and [command reference](docs/COMMANDS.md).
 - Discuss substantial changes in an issue first.
 - Exclude credentials and `.pongkan-crew` conversation data.
 - Submit only material you may contribute under the MIT License.
@@ -39,9 +39,9 @@ no agent tasks. Physical touchpad gestures still need a manual check.
 
 ## Security-sensitive changes
 
-Read [SECURITY.md](SECURITY.md) before changing filesystem operations, process arguments or permissions. Preserve shell-free subprocess invocation, read-only task retries, private state handling, built-in preset protection and recoverable history. Add regression tests for path redirection and permission regressions using temporary fixtures; never use real system files or credentials. Update [command documentation](COMMANDS.md) and in-app examples when changing commands.
+Read [SECURITY.md](SECURITY.md) before changing filesystem operations, process arguments or permissions. Preserve shell-free subprocess invocation, read-only task retries, private state handling, built-in preset protection and recoverable history. Add regression tests for path redirection and permission regressions using temporary fixtures; never use real system files or credentials. Update [command documentation](docs/COMMANDS.md) and in-app examples when changing commands.
 
-Coordinator and state-migration changes must cover fresh default crews, older saved state, renamed coordinators, restart, preset restore and undo. Reject malformed destructive commands before mutating archives or saving state. Document migration and recovery steps in [UPGRADING.md](UPGRADING.md). Keep migration fixtures synthetic and never commit a real `.pongkan-crew/state.json`.
+Coordinator and state-migration changes must cover fresh default crews, older saved state, renamed coordinators, restart, preset restore and undo. Reject malformed destructive commands before mutating archives or saving state. Document migration and recovery steps in [UPGRADING.md](docs/UPGRADING.md). Keep migration fixtures synthetic and never commit a real `.pongkan-crew/state.json`.
 
 ## Preparing a public release
 

@@ -50,6 +50,15 @@ To discuss first, open Crew Chat. Wait for the discussion to finish, then execut
 
 Enter commands separately. Ordinary messages in Crew Chat continue a read-only discussion. Follow implementation in individual Chat and Activity; Crew Chat also shows workflow updates.
 
+### `/task` and `/crew-task`
+
+| Command             | Goal                                              | Crew Chat context                                   | Requirement                                                                   | Opens after starting   |
+| ------------------- | ------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------- |
+| `/task GOAL`        | Required                                          | Included when run from Crew Chat; otherwise omitted | No discussion required                                                        | Lead's individual Chat |
+| `/crew-task [GOAL]` | Optional; without one, implements the agreed plan | Always uses the latest discussion, from any view    | A saved Crew Chat discussion; any active discussion must finish or be stopped | Crew Chat              |
+
+Both commands create a coordinated workflow in which the lead plans assignments, requests an independent review, and summarizes the result. Use `/task` for a standalone goal and `/crew-task` to carry a Crew Chat discussion into implementation. Both support `--isolated` to run in a separate Git worktree.
+
 | Action                          | Command                                                   |
 | ------------------------------- | --------------------------------------------------------- |
 | Select a teammate               | `/chat developer`                                         |
@@ -97,7 +106,7 @@ During a Crew Chat discussion, Enter and Shift+Left both queue follow-ups until 
 
 ![Local todo website preview](assets/images/todo-result.gif)
 
-Build a local Next.js todo app with the crew: [walkthrough](TODO_WEBSITE_WALKTHROUGH.md) / [full video](assets/video/todo-result.mp4).
+Build a local Next.js todo app with the crew: [walkthrough](docs/TODO_WEBSITE_WALKTHROUGH.md) / [full video](assets/video/todo-result.mp4).
 
 ## Settings and saved data
 
@@ -117,7 +126,7 @@ If Node or Codex is missing, install it and reopen the terminal. Run `codex logi
 
 ## Documentation and development
 
-[Command reference](COMMANDS.md) / [Upgrading and recovery](UPGRADING.md) / [Todo website walkthrough](TODO_WEBSITE_WALKTHROUGH.md) / [Contributing](CONTRIBUTING.md) / [Security](SECURITY.md)
+[Command reference](docs/COMMANDS.md) / [Upgrading and recovery](docs/UPGRADING.md) / [Todo website walkthrough](docs/TODO_WEBSITE_WALKTHROUGH.md) / [Contributing](CONTRIBUTING.md) / [Security](SECURITY.md)
 
 Run `npm ci` to install the development tools before running `npm run lint` or `npm run format:check`. Tests (`node --test`), offline previews (`node .\scripts\preview-display.js` and `node .\scripts\preview-display.js --activity`), and syntax validation (`node .\scripts\check-syntax.js`) need no installed dependencies. Continuous integration runs tests and both previews on Linux and Windows with Node 22 and 24. A separate Ubuntu job on Node 22 checks linting, formatting, syntax, package contents, and sensitive-path ignore rules.
 
