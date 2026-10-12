@@ -55,7 +55,7 @@ The default crew is **Chief, Researcher, Developer, and Reviewer**. Type normall
 | Individual Chat       | The selected teammate                                   |
 | `@NAME MESSAGE`       | The named teammate, using shared Crew Chat context      |
 
-Use your own words; no specific verb or keyword is required. Crew interprets each message and routes it to a reply, assignment, discussion, or workflow within the crew's permissions. In Crew Chat, a natural follow-up such as `Proceed with the plan we discussed.` can start a coordinated workflow using the recent discussion as context. Use `/discuss`, `/task`, or `/crew-task` when you prefer an explicit command.
+Use your own words; no specific verb or keyword is required. Crew interprets each message and routes it to a reply, assignment, discussion, or workflow within the crew's permissions. In Crew Chat, a natural follow-up such as `Proceed with what you've discussed.` can start a coordinated workflow using the recent discussion as context. Use `/discuss`, `/task`, or `/crew-task` when you prefer an explicit command.
 
 Natural-language routing does not grant access: each action still follows the selected recipient's permissions. Developer can implement an edit or perform authorized Git work directly; Reviewer stays read-only. Questions and actions use the same delivery path.
 
@@ -85,7 +85,7 @@ To ask a question of only one teammate, start the message with `@NAME`:
 
 Ordinary messages can request one recipient's reply or a workflow, depending on their meaning. `/discuss` explicitly schedules two rounds and a lead summary.
 
-Crew Chat and individual chats use separate sessions. A teammate's individual chat does not automatically receive what they just discussed in Crew Chat. Continue with `@NAME` in Crew Chat when you want them to use that discussion, or include the relevant details in their individual chat. In Crew Chat, approve the plan naturally—for example, `Proceed with the plan we discussed.`—or use `/crew-task` for an explicit command.
+Crew Chat and individual chats use separate sessions. A teammate's individual chat does not automatically receive what they just discussed in Crew Chat. Continue with `@NAME` in Crew Chat when you want them to use that discussion, or include the relevant details in their individual chat. In Crew Chat, approve the plan naturally—for example, `Proceed with what you've discussed.`—or use `/crew-task` for an explicit command.
 
 ### Optional `/task` and `/crew-task` overrides
 

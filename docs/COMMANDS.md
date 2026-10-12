@@ -24,7 +24,7 @@ Type normally **inside Pongkan Crew** and press Enter. Slash commands are option
 | Individual Chat       | The selected teammate                                   |
 | `@NAME MESSAGE`       | The named teammate, using shared Crew Chat context      |
 
-Type naturally and press Enter; no specific verb or keyword is required. Crew interprets the request and routes it to a reply, assignment, discussion, or workflow within the crew's permissions. In Crew Chat, a natural approval such as `Proceed with the plan we discussed.` can start a coordinated workflow from the recent discussion. Use the explicit commands below when you prefer a command.
+Type naturally and press Enter; no specific verb or keyword is required. Crew interprets the request and routes it to a reply, assignment, discussion, or workflow within the crew's permissions. In Crew Chat, a natural approval such as `Proceed with what you've discussed.` can start a coordinated workflow from the recent discussion. Use the explicit commands below when you prefer a command.
 
 Crew Chat and Activity route through the lead. `@NAME MESSAGE` addresses that teammate; Individual Chat addresses the selected teammate. Natural-language routing may start a workflow when requested, while each action still follows the recipient's configured permissions.
 
@@ -58,7 +58,7 @@ Corrections are queued for the next task boundary. Workflow completion records t
 
 Sharing requires a completed reply and another existing teammate. A running, queued, or unanswered private turn must finish first. Only the latest exchange is shared, including its full text; older exchanges and other private chats are not imported. An ordinary mention or a teammate suggesting collaboration does not trigger sharing. `/handoff NAME [TASK]` continues to send a direct assignment rather than open a shared conversation.
 
-Use `/crew-task [GOAL]` after the discussion finishes to explicitly execute with the shared findings. You can also approve the plan naturally in Crew Chat; `Proceed with the plan we discussed.` is one example, and the router uses recent discussion context to decide whether to start the workflow. `/crew-task --isolated [GOAL]` also carries that context into a separate Git worktree. Execution may involve additional crew specialists beyond the discussion participants.
+Use `/crew-task [GOAL]` after the discussion finishes to explicitly execute with the shared findings. You can also approve the plan naturally in Crew Chat; `Proceed with what you've discussed.` is one example, and the router uses recent discussion context to decide whether to start the workflow. `/crew-task --isolated [GOAL]` also carries that context into a separate Git worktree. Execution may involve additional crew specialists beyond the discussion participants.
 
 | Command                          | Purpose                                                                       | Sample usage                                                             |
 | -------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
