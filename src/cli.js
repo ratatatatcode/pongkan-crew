@@ -7,10 +7,10 @@ import { isatty } from 'node:tty';
 
 import { Crew } from './crew.js';
 import { screen } from './ui.js';
-import { execute, cycle, HELP } from './commands.js';
+import { execute, queuePrompt, cycle, HELP } from './commands.js';
 import { acquireLock, checkRuntime } from './runtime.js';
 import { completions } from './controls.js';
-import { layoutInput, PromptHistory } from './input.js';
+import { layoutInput, navigateInput, PromptHistory } from './input.js';
 import { MOUSE_ON, MOUSE_OFF, scrollView, terminalInput } from './scroll.js';
 import { enableWindowsMouse, connectWindowsInput } from './windows-input.js';
 import { runWorker } from './scheduler.js';
@@ -232,16 +232,30 @@ async function main() {
           else if (matches.length) app.notice = matches.join(' | ');
           else app.notice = 'No completion. Use /help QUERY to search.';
         } else cycle(app, key.shift ? -1 : 1);
-      } else if (key.name === 'up' || key.name === 'down') {
-        const delta = key.name === 'up' ? -1 : 1;
-        setInput(history.move(delta, input.join('')));
+      } else if (key.shift && key.name === 'left') {
+        const text = input.join('').trim();
+        if (text && app.view !== 'activity') {
+          queuePrompt(app, text);
+          history.add(text);
+          setInput('');
+        }
+      } else if (
+        ['up', 'down', 'left', 'right', 'home', 'end'].includes(key.name) &&
+        !(key.shift && key.name === 'right')
+      ) {
+        const label = app.view === 'activity' ? 'activity' : app.view === 'group' ? 'crew' : app.selected;
+        const movement = navigateInput(
+          input.join(''),
+          cursor,
+          key,
+          label,
+          Math.max(30, (process.stdout.columns || 100) - 1),
+        );
+        if (movement.history) setInput(history.move(movement.history, input.join('')));
+        else cursor = movement.cursor;
       } else if (key.name === 'pageup' || key.name === 'pagedown') {
         scrollView(app, key.name === 'pageup' ? 10 : -10);
       } else if (key.shift && key.name === 'right') setInput(answerShortcut(app, input.join('')));
-      else if (key.name === 'left') cursor = Math.max(0, cursor - 1);
-      else if (key.name === 'right') cursor = Math.min(input.length, cursor + 1);
-      else if (key.name === 'home') cursor = 0;
-      else if (key.name === 'end') cursor = input.length;
       else if (key.name === 'return') {
         const line = input.join('').trim();
         setInput('');

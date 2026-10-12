@@ -1,6 +1,6 @@
 # Upgrading and recovering saved crews
 
-[README](../README.md) � [Command reference](COMMANDS.md) � [Security](../SECURITY.md)
+[README](README.md) | [Command reference](COMMANDS.md) | [Security](SECURITY.md)
 
 ## State location and safe upgrades
 
@@ -39,7 +39,7 @@ Choose an unused custom preset name and substitute your actual teammates. If the
 
 ## Invalid state
 
-Malformed JSON or an invalid explicit coordinator configuration is rejected rather than overwritten. Keep the original file and a private backup; do not delete state or guess changes to session IDs. Reports to maintainers should include the error and a synthetic reproduction, not the private state file. Follow [SECURITY.md](../SECURITY.md) if the report involves sensitive information.
+Malformed JSON or an invalid explicit coordinator configuration is rejected rather than overwritten. Keep the original file and a private backup; do not delete state or guess changes to session IDs. Reports to maintainers should include the error and a synthetic reproduction, not the private state file. Follow [SECURITY.md](SECURITY.md) if the report involves sensitive information.
 
 ## Named conversations and workflow workspaces
 

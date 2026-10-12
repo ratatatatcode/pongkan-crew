@@ -51,7 +51,7 @@ Ignore checks passed for `.pongkan-crew/state.json`, `.env`, `.env.local`, `.aws
 
 A subsequent functional review found three pre-existing issues: renaming the default Chief broke task routing, the default Reviewer could gain writer access, and teammate removal ignored extra arguments. The current working tree fixes all three. Fresh and intact legacy default crews now record explicit coordination; renamed coordinators survive restart, reviewers remain read-only, and invalid removal syntax leaves members, archives and saved state unchanged.
 
-Legacy default preset archives receive the same protection on restore and undo. Customized legacy identities are preserved without guessing; [UPGRADING.md](UPGRADING.md) documents an explicit recovery path and the private state-file location. README, command help, contributor guidance and the security policy describe the resulting behavior.
+Legacy default preset archives receive the same protection on restore and undo. Customized legacy identities are preserved without guessing; [UPGRADING.md](../UPGRADING.md) documents an explicit recovery path and the private state-file location. README, command help, contributor guidance and the security policy describe the resulting behavior.
 
 Follow-up verification: all 130 offline tests passed, including six coordinator regression tests. The live read-only workflow completed planning, research, independent review and summary against a temporary fixture, which remained unchanged. All 38 local Markdown links resolve, and the whitespace check passed. The earlier live connection and session-resume checks also passed. These checks do not change the original secret-scan scope, clear the remaining media/privacy considerations, or enable hosted GitHub security settings.
 

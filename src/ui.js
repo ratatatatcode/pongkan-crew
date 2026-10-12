@@ -82,7 +82,7 @@ export function screen(
     width,
     Math.max(1, Math.min(5, Math.floor(rows / 5))),
   );
-  const height = Math.max(1, rows - 14 - (composer.lines.length - 1));
+  const height = Math.max(1, rows - 12 - (composer.lines.length - 1));
   const sidebar = width >= 70 ? 23 : 0;
   const contentWidth = width - sidebar - (sidebar ? 3 : 0);
   const readingWidth = Math.max(12, Math.min(92, contentWidth - 4));
@@ -143,13 +143,17 @@ export function screen(
       ? [
           row(`CREW CHAT · ${discussionStatus}`, 'heading'),
           row(''),
-          ...discussion.messages.flatMap(m => [
-            row(nameLabel(m.speaker), m.role),
-            row(''),
-            ...messageBody(m, readingWidth, crew.folder, m.speaker),
-            row(''),
-            row(''),
-          ]),
+          ...discussion.messages
+            .map((message, index) => ({ message, order: message.discussionMessageIndex ?? index }))
+            .filter(({ message }) => !message.queued)
+            .sort((a, b) => a.order - b.order)
+            .flatMap(({ message: m }) => [
+              row(nameLabel(m.speaker), m.role),
+              row(''),
+              ...messageBody(m, readingWidth, crew.folder, m.speaker),
+              row(''),
+              row(''),
+            ]),
         ]
       : [
           row('Start a crew discussion with /discuss TOPIC.', 'heading'),
@@ -163,6 +167,9 @@ export function screen(
           row('Or ask one teammate with @developer MESSAGE.', 'muted'),
         ];
     if (discussion?.status === 'working') {
+      const queuedPrompts = discussion.messages.filter(message => message.queued).length;
+      if (queuedPrompts)
+        content.push(row(`${queuedPrompts} prompt(s) queued; waiting for all current turns to finish.`, 'muted'));
       const progress = active
         ? `${nameLabel(active.member)} · ${activityLabel(crew.member(active.member))}`
         : paused
@@ -332,12 +339,12 @@ export function screen(
       fit(
         notice ||
           (composer.totalRows > 1
-            ? `Input ${composer.hiddenBefore + 1}-${composer.hiddenBefore + composer.lines.length}/${composer.totalRows} · Up/Down Prompt history · Enter Send`
+            ? `Input ${composer.hiddenBefore + 1}-${composer.hiddenBefore + composer.lines.length}/${composer.totalRows} · Up/Down Move · Shift+Left Queue · Enter Send`
             : view === 'group'
-              ? 'F2 Next tab     |     @NAME Reply     |     /discuss TOPIC     |     Ctrl+K Stop'
+              ? 'F2 Next tab     |     Shift+Left Queue     |     @NAME Reply     |     Ctrl+K Stop'
               : view === 'activity'
                 ? 'F2 Next tab  ·  Shift+F2 Previous  ·  ? Help  ·  Ctrl+C Quit'
-                : '? Help  ·  F2 Next tab  ·  Tab Teammates / Crew Chat  ·  Enter Send  ·  Ctrl+K Stop'),
+                : '? Help  ·  F2 Next tab  ·  Shift+Left Queue  ·  Enter Send  ·  Ctrl+K Stop'),
         width,
       ),
       'muted',

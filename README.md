@@ -71,32 +71,39 @@ GitHub commands require an authenticated GitHub CLI (`gh`). They do not automati
 
 Rotating tips appear below the command/status line while the CLI is open.
 
-| Key                       | Action                                                                  |
-| ------------------------- | ----------------------------------------------------------------------- |
-| Tab / Shift+Tab           | Cycle teammates and Crew Chat                                           |
-| F2 / Shift+F2             | Switch views                                                            |
-| Mouse wheel / PgUp / PgDn | Scroll responses, activity or panels                                    |
-| Up / Down                 | Previous / next prompt; return to your new draft                        |
-| Shift+Right               | Fill in the answer command for a waiting question; press again to cycle |
-| Enter                     | Send                                                                    |
-| Esc                       | Close a panel or clear input                                            |
-| ? / F1                    | Open help                                                               |
-| Ctrl+K                    | Stop selected work                                                      |
-| Ctrl+C                    | Exit and stop work                                                      |
+| Key                       | Action                                                                     |
+| ------------------------- | -------------------------------------------------------------------------- |
+| Tab / Shift+Tab           | Cycle teammates and Crew Chat                                              |
+| F2 / Shift+F2             | Switch views                                                               |
+| Mouse wheel / PgUp / PgDn | Scroll responses, activity or panels                                       |
+| Up / Down                 | Move through input lines; browse prompt history beyond the first/last line |
+| Left / Right              | Move the cursor across input line boundaries                               |
+| Home / End                | Jump to the current input line's beginning/end                             |
+| Ctrl+Home / Ctrl+End      | Jump to the entire prompt's beginning/end                                  |
+| Ctrl+P / Ctrl+N           | Browse prompt history from anywhere in the input                           |
+| Shift+Left                | Queue the typed prompt and resume paused dispatch                          |
+| Shift+Right               | Fill in the answer command for a waiting question; press again to cycle    |
+| Enter                     | Send the full prompt; preserve a paused queue                              |
+| Esc                       | Close a panel or clear input                                               |
+| ? / F1                    | Open help                                                                  |
+| Ctrl+K                    | Stop selected work                                                         |
+| Ctrl+C                    | Exit and stop work                                                         |
 
-Mouse wheel scrolls responses, activity and panels while the input stays fixed. Up/Down previews submitted prompts and restores your new draft after the newest prompt. Stopping work does not undo file edits.
+Mouse wheel scrolls responses, activity and panels while the input stays fixed. Long input uses up to five visible lines, including a `[1,234 characters hidden]` marker when collapsed. The visible text follows the cursor; Enter and Shift+Left send the full input without a character limit imposed by Crew. The footer leaves one blank line at the bottom.
+
+During a Crew Chat discussion, Enter and Shift+Left both queue follow-ups until every turn for the current prompt finishes. Queued prompts stay outside the transcript with a waiting count, then appear when their replies start. Shift+Left also resumes paused dispatch, including other eligible queued tasks; Enter leaves a paused queue paused. Tab keeps switching teammates or completing `/` commands and `@` names. Stopping work does not undo file edits.
 
 ## Example: local todo website
 
 ![Local todo website preview](assets/images/todo-result.gif)
 
-Build a local Next.js todo app with the crew: [walkthrough](docs/TODO_WEBSITE_WALKTHROUGH.md) / [full video](assets/video/todo-result.mp4).
+Build a local Next.js todo app with the crew: [walkthrough](TODO_WEBSITE_WALKTHROUGH.md) / [full video](assets/video/todo-result.mp4).
 
 ## Settings and saved data
 
 Use `/model` to inspect model settings, `/memory add TEXT` to save project guidance, and `/schedule` for recurring checks. `/context on` optionally clips long assistant context; full saved history is retained.
 
-Project state lives in `<target-folder>/.pongkan-crew/`. Add `.pongkan-crew/` to your project's `.gitignore` and keep it private. `/markdown on` exports future changes to `docs/pongkan-docs/`; it defaults to off.
+Project state lives in `<target-folder>/.pongkan-crew/`. Add `.pongkan-crew/` to your project's `.gitignore` and keep it private. `/markdown on` exports future changes to `docs/pongkan-docs/`; it defaults to off. Crew Chat exports identify Enter versus Shift+Left submissions, submission/start times, and queued prompts waiting for earlier replies.
 
 Writers can edit project files. Planning, discussions, and reviews are read-only. Keep changes in version control and read the [security boundaries](SECURITY.md).
 
@@ -110,7 +117,7 @@ If Node or Codex is missing, install it and reopen the terminal. Run `codex logi
 
 ## Documentation and development
 
-[Command reference](docs/COMMANDS.md) / [Upgrading and recovery](docs/UPGRADING.md) / [Contributing](CONTRIBUTING.md) / [Security](SECURITY.md)
+[Command reference](COMMANDS.md) / [Upgrading and recovery](UPGRADING.md) / [Todo website walkthrough](TODO_WEBSITE_WALKTHROUGH.md) / [Contributing](CONTRIBUTING.md) / [Security](SECURITY.md)
 
 Run `npm ci` to install the development tools before running `npm run lint` or `npm run format:check`. Tests (`node --test`), offline previews (`node .\scripts\preview-display.js` and `node .\scripts\preview-display.js --activity`), and syntax validation (`node .\scripts\check-syntax.js`) need no installed dependencies. Continuous integration runs tests and both previews on Linux and Windows with Node 22 and 24. A separate Ubuntu job on Node 22 checks linting, formatting, syntax, package contents, and sensitive-path ignore rules.
 
