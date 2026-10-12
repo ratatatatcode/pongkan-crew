@@ -242,6 +242,11 @@ async function main() {
           else if (matches.length) app.notice = matches.join(' | ');
           else app.notice = 'No completion. Use /help QUERY to search.';
         } else cycle(app, key.shift ? -1 : 1);
+      } else if (app.panel?.kind === 'codex-permissions' && ['up', 'down'].includes(key.name)) {
+        const count = 4;
+        app.panel.permissionIndex = (app.panel.permissionIndex + (key.name === 'down' ? 1 : -1) + count) % count;
+      } else if (app.panel?.kind === 'codex-permissions' && promptEnterAction(str, key) === 'submit') {
+        app.panel.onSelect();
       } else if (key.shift && key.name === 'left') {
         const text = input.join('').trim();
         if (text) {

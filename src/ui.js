@@ -99,7 +99,7 @@ export function screen(
   ).flatMap(m => {
     const label = m.role === 'user' ? 'You' : m.role === 'assistant' ? nameLabel(selected) : 'System';
     const body = messageBody(m, readingWidth, crew.folder, selected);
-    return [row(label, m.role), row(''), ...body, row(''), row('')];
+    return [row(label, m.role), ...body, row(''), row('')];
   });
   if (!conversation.length)
     conversation.push(
@@ -155,7 +155,6 @@ export function screen(
         at: promptTime,
         rows: [
           row(`${nameLabel(m.speaker)}${m.queued ? ' · queued' : ''}`, m.role),
-          row(''),
           ...messageBody(m, readingWidth, crew.folder, m.speaker),
           row(''),
           row(''),
@@ -180,9 +179,7 @@ export function screen(
       timeline.push({
         at: input.createdAt,
         rows: [
-          row(''),
           row('You', 'user'),
-          row(''),
           ...renderMarkdown(input.text, readingWidth, { folder: crew.folder }),
           row(''),
           ...wrap(inputStatus(crew, input), readingWidth).map(text => row(text, 'muted')),

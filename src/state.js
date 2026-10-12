@@ -1,6 +1,7 @@
 import { MAX_TEAM } from './roles.js';
 import { MODEL_ID, EFFORTS } from './models.js';
 import { PERSONALITIES } from './personality.js';
+import { CODEX_PERMISSION_MODES } from './codex-permissions.js';
 const NAME = /^[a-z][a-z0-9-]{0,31}$/;
 const ID = /^[a-f0-9]{8}$/;
 const TASK_STATUS = new Set(['queued', 'running', 'waiting', 'completed', 'failed', 'cancelled', 'interrupted']);
@@ -40,6 +41,7 @@ function membersValid(members) {
         NAME.test(m.name) &&
         typeof m.role === 'string' &&
         typeof m.writable === 'boolean' &&
+        CODEX_PERMISSION_MODES.some(mode => mode.id === m.codexPermissions) &&
         (m.model === undefined || (typeof m.model === 'string' && MODEL_ID.test(m.model))) &&
         (m.reasoningEffort === undefined || EFFORTS.has(m.reasoningEffort)) &&
         (m.personality === undefined || Object.hasOwn(PERSONALITIES, m.personality)) &&
@@ -55,7 +57,10 @@ export function validateState(state) {
   const invalid = () => {
     throw new Error('Invalid crew state. Back up .pongkan-crew/state.json before repairing it.');
   };
-  if (!state || state.version !== 1 || !membersValid(state.members)) invalid();
+  if (!state || state.version !== 1 || !Array.isArray(state.members)) invalid();
+  for (const member of state.members)
+    if (member && member.codexPermissions === undefined) member.codexPermissions = 'approve';
+  if (!membersValid(state.members)) invalid();
   if (state.questionsEnabled === undefined) state.questionsEnabled = true;
   if (typeof state.questionsEnabled !== 'boolean') invalid();
   if (state.contextOptimization === undefined) state.contextOptimization = false;

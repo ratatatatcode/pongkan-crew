@@ -80,6 +80,7 @@ const COMMANDS = [
   '/crew rename',
   '/crew role',
   '/crew access',
+  '/permissions',
   '/crew info',
   '/crew chat',
   '/personality',
@@ -129,6 +130,11 @@ export function completions(input, names, presetNames = ['default', 'web', 'mobi
     return Object.keys(PERSONALITIES)
       .filter(style => style.startsWith(personalityStyle[1]))
       .map(style => `/personality ${input.split(/\s+/)[1]} ${style}`);
+  const permissions = input.match(/^\/permissions\s+(\S*)$/);
+  if (permissions)
+    return [...names, 'ask', 'approve', 'full', 'read-only']
+      .filter(value => value.startsWith(permissions[1]))
+      .map(value => `/permissions ${value}`);
   if (!input.startsWith('/')) return [];
   const modelTarget = input.match(/^(\/model (?:set|reset))\s+(\S*)$/);
   if (modelTarget)

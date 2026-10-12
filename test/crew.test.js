@@ -33,13 +33,40 @@ test('Codex arguments preserve folder, sandbox and explicit session identity', (
 });
 
 test('crew routes sandbox escalation to automatic review without widening role access', () => {
-  for (const writable of [true, false]) {
-    const args = buildArgs('/project', { name: 'teammate', writable });
-    assert.ok(args.includes('approval_policy="on-request"'));
-    assert.ok(args.includes('approvals_reviewer="auto_review"'));
-    assert.equal(args[args.indexOf('-s') + 1], writable ? 'workspace-write' : 'read-only');
-    assert.ok(!args.some(arg => arg.includes('dangerously-bypass')));
-  }
+  const writerArgs = buildArgs('/project', { name: 'developer', writable: true });
+  assert.ok(writerArgs.includes('approval_policy="on-request"'));
+  assert.ok(writerArgs.includes('approvals_reviewer="auto_review"'));
+  assert.equal(writerArgs[writerArgs.indexOf('-s') + 1], 'workspace-write');
+
+  const readerArgs = buildArgs('/project', { name: 'reviewer', writable: false });
+  assert.ok(readerArgs.includes('approval_policy="never"'));
+  assert.ok(!readerArgs.some(arg => arg.includes('approvals_reviewer=')));
+  assert.equal(readerArgs[readerArgs.indexOf('-s') + 1], 'read-only');
+  assert.ok(![...writerArgs, ...readerArgs].some(arg => arg.includes('dangerously-bypass')));
+});
+
+test('Codex permission modes map to sandbox and approval settings while role access wins', () => {
+  const ask = buildArgs('/project', { name: 'developer', writable: true }, null, 'ask');
+  assert.equal(ask[ask.indexOf('-s') + 1], 'workspace-write');
+  assert.ok(ask.includes('approval_policy="on-request"'));
+  assert.ok(ask.includes('approvals_reviewer="user"'));
+
+  const approve = buildArgs('/project', { name: 'developer', writable: true }, null, 'approve');
+  assert.equal(approve[approve.indexOf('-s') + 1], 'workspace-write');
+  assert.ok(approve.includes('approvals_reviewer="auto_review"'));
+
+  const full = buildArgs('/project', { name: 'developer', writable: true }, null, 'full');
+  assert.equal(full[full.indexOf('-s') + 1], 'danger-full-access');
+  assert.ok(full.includes('approval_policy="never"'));
+
+  const readOnly = buildArgs('/project', { name: 'developer', writable: true }, null, 'read-only');
+  assert.equal(readOnly[readOnly.indexOf('-s') + 1], 'read-only');
+  assert.ok(readOnly.includes('approval_policy="never"'));
+
+  const readOnlyRole = buildArgs('/project', { name: 'reviewer', writable: false }, null, 'full');
+  assert.equal(readOnlyRole[readOnlyRole.indexOf('-s') + 1], 'read-only');
+  assert.ok(readOnlyRole.includes('approval_policy="never"'));
+  assert.ok(!readOnlyRole.some(arg => arg.includes('approvals_reviewer=')));
 });
 
 test('completed messages and thread IDs persist; failed turns expose errors', async () => {

@@ -55,7 +55,7 @@ The default crew is **Chief, Researcher, Developer, and Reviewer**. Type normall
 | Individual Chat       | The selected teammate                                   |
 | `@NAME MESSAGE`       | The named teammate, using shared Crew Chat context      |
 
-Use your own words; no specific verb or keyword is required. Crew interprets each message and routes it to a reply, assignment, discussion, or workflow within the crew's permissions. In Crew Chat, a natural follow-up such as `Proceed with the agreed plan from our discussion.` can start a coordinated workflow using the recent discussion as context. Use `/discuss`, `/task`, or `/crew-task` when you prefer an explicit command.
+Use your own words; no specific verb or keyword is required. Crew interprets each message and routes it to a reply, assignment, discussion, or workflow within the crew's permissions. In Crew Chat, a natural follow-up such as `Proceed with the plan we discussed.` can start a coordinated workflow using the recent discussion as context. Use `/discuss`, `/task`, or `/crew-task` when you prefer an explicit command.
 
 Natural-language routing does not grant access: each action still follows the selected recipient's permissions. Developer can implement an edit or perform authorized Git work directly; Reviewer stays read-only. Questions and actions use the same delivery path.
 
@@ -85,7 +85,7 @@ To ask a question of only one teammate, start the message with `@NAME`:
 
 Ordinary messages can request one recipient's reply or a workflow, depending on their meaning. `/discuss` explicitly schedules two rounds and a lead summary.
 
-Crew Chat and individual chats use separate sessions. A teammate's individual chat does not automatically receive what they just discussed in Crew Chat. Continue with `@NAME` in Crew Chat when you want them to use that discussion, or include the relevant details in their individual chat. In Crew Chat, approve the plan naturally—for example, `Proceed with the agreed plan from our discussion.`—or use `/crew-task` for an explicit command.
+Crew Chat and individual chats use separate sessions. A teammate's individual chat does not automatically receive what they just discussed in Crew Chat. Continue with `@NAME` in Crew Chat when you want them to use that discussion, or include the relevant details in their individual chat. In Crew Chat, approve the plan naturally—for example, `Proceed with the plan we discussed.`—or use `/crew-task` for an explicit command.
 
 ### Optional `/task` and `/crew-task` overrides
 
@@ -173,6 +173,15 @@ Project state lives in `<target-folder>/.pongkan-crew/`. Add `.pongkan-crew/` to
 
 Writers can edit project files. Planning, discussions, and reviews are read-only. Keep changes in version control and read the [security boundaries](SECURITY.md).
 
+### Codex permission modes
+
+Use `/permissions [NAME]` to choose a teammate's mode, or `/permissions MODE [NAME]` to set one directly (`ask`, `approve`, `full`, or `read-only`). These modes configure the Codex CLI sandbox and approval behavior; they do not change Windows account permissions. The teammate's Crew role still applies, so a read-only teammate cannot write even when another mode is selected.
+
+- **Ask for approval** keeps workspace writes inside the workspace sandbox and requests approval for eligible access outside it. Crew runs Codex noninteractively, so requests that need a live user prompt may stop without being approved.
+- **Approve for me** uses Codex's workspace-write sandbox and automatic review for eligible requests. It does not grant unrestricted filesystem access.
+- **Full Access** removes Codex's filesystem sandbox and runs without approval. Use only when you intend to allow access beyond the project workspace.
+- **Read Only** blocks edits and access escalation.
+
 ## Troubleshooting
 
 ```powershell
@@ -180,6 +189,8 @@ node .\src\cli.js --doctor --folder "C:\Projects\My Project"
 ```
 
 If Node or Codex is missing, install it and reopen the terminal. Run `codex login` to sign in. Close any other Pongkan Crew instance using the same folder. On Windows, set `PONGKAN_CODEX_BIN` to the full path of `codex.exe` if discovery fails.
+
+If a Node/npm command reports `EPERM` for a path outside the project (for example, `C:\Users\...`), **Approve for me** may not resolve the Windows access failure. Identify the exact required path and grant only that path if needed; Full Access removes the sandbox boundary for the whole run.
 
 ## Documentation and development
 
