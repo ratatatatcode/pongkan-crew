@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, toNamespacedPath } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { Crew } from '../src/crew.js';
 import { execute } from '../src/commands.js';
@@ -258,6 +258,27 @@ test('switching conversations while tasks run preserves both destinations and ca
   assert.match(app.crew.conversations.get(firstId).messages.at(-1).text, /Finished First topic/);
   assert.doesNotMatch(JSON.stringify(app.crew.conversations.get(secondId).messages), /First topic/);
 });
+
+test(
+  'worktree creation accepts a Windows namespace alias for the repository root',
+  {
+    skip: process.platform !== 'win32',
+  },
+  async t => {
+    const { crew } = setup(t);
+    const git = args => execFileSync('git', args, { cwd: crew.folder, windowsHide: true });
+    git(['init']);
+    git(['-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '--allow-empty', '-m', 'Initial']);
+    const originalGit = crew.worktrees.git.bind(crew.worktrees);
+    crew.worktrees.git = async (args, folder) => {
+      const output = await originalGit(args, folder);
+      return args[0] === 'rev-parse' && args[1] === '--show-toplevel' ? toNamespacedPath(output) : output;
+    };
+    const worktree = await crew.worktrees.create();
+    assert.ok(existsSync(join(worktree.workspace, '.git')));
+    assert.equal(crew.worktrees.verify(worktree), worktree.workspace);
+  },
+);
 
 test('worktree creation rejects dirty tracked files without dispatching a workflow', async t => {
   const { crew } = setup(t);

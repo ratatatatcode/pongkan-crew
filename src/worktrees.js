@@ -25,7 +25,8 @@ export class Worktrees {
     const id = randomUUID().slice(0, 8),
       branch = `pongkan/${id}`;
     const root = await this.git(['rev-parse', '--show-toplevel']);
-    if (!samePath(realpathSync(root), this.crew.folder))
+    // Native resolution expands Windows short names and removes namespace prefixes.
+    if (!samePath(realpathSync.native(root), realpathSync.native(this.crew.folder)))
       throw new Error('Open the Git repository root before starting an isolated workflow.');
     const baseCommit = await this.git(['rev-parse', '--verify', 'HEAD']);
     if (await this.git(['status', '--porcelain', '--untracked-files=no']))
