@@ -65,13 +65,21 @@ In Crew Chat, type this and press Enter. This request repeats the requirements s
 
 ### Option B: Execute the discussed plan
 
-In Crew Chat, type this to use the plan from step 3:
+In Crew Chat, use either example to start the implementation from the plan in step 3. Choose one; do not send both.
 
 ```text
 /crew-task
+# Or approve the plan in plain language:
+Proceed with what you've discussed.
 ```
 
-This uses the saved Crew Chat findings, so you do not need to repeat the agreed requirements. Wait for the discussion to finish before starting. Use one build option per run. Or approve the plan naturally in Crew Chat; `Proceed with what you've discussed.` is one example, not a required phrase.
+The `/crew-task` command uses the saved Crew Chat findings, so you do not need to repeat the agreed requirements. Wait for the discussion to finish before starting. The plain-language example works as a follow-up in Crew Chat; you do not need to type `/crew-task` with it. These are examples, not required phrases. Use one build option per run.
+
+To approve the plan without a command, send this as its own message in Crew Chat:
+
+```text
+Proceed with what you've discussed.
+```
 
 ### Follow progress
 
