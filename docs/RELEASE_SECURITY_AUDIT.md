@@ -59,7 +59,7 @@ Follow-up verification: all 130 offline tests passed, including six coordinator 
 
 Automated CI/CD workflows and Dependabot configuration were added under `.github/`:
 
-- `.github/workflows/ci.yml`: Executes multi-platform matrix testing (`ubuntu-latest`, `windows-latest`, `macos-latest` on Node.js 22 and 24), runs JavaScript syntax validation via `node scripts/check-syntax.js`, verifies `npm pack --dry-run`, and tests sensitive path ignore rules.
+- `.github/workflows/ci.yml`: Executes multi-platform matrix testing (`ubuntu-latest`, `windows-latest` on Node.js 22 and 24), runs JavaScript syntax validation via `node scripts/check-syntax.js`, verifies `npm pack --dry-run`, and tests sensitive path ignore rules.
 - `.github/workflows/release.yml`: Automates release asset generation and GitHub release drafting on version tags (`v*`) using GitHub's built-in CLI (`gh`), avoiding unvetted third-party publishing actions.
 - `.github/dependabot.yml`: Tracks and updates pinned GitHub Actions.
 

@@ -31,7 +31,7 @@ no agent tasks. Physical touchpad gestures still need a manual check.
 ## Pull requests
 
 - Explain the problem and resulting behavior.
-- Report check results and anything not checked (automated CI verifies tests, syntax, and repository hygiene across Linux, macOS, and Windows on Node 22 and 24).
+- Report check results and anything not checked (automated CI verifies tests, syntax, and repository hygiene across Linux and Windows on Node 22 and 24).
 - Update usage docs when behavior changes.
 - Exclude generated output, local state, installed dependencies, and secrets.
 

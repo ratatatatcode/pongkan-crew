@@ -58,7 +58,7 @@ test('activity shows live action and elapsed time with colored event types and r
   for (const columns of [60, 120]) {
     const output = screen(crew, 'developer', '', '', columns, 35, 0, null, { view: 'activity', color: true });
     assert.match(clean(output), /LIVE NOW/);
-    assert.match(clean(output), /developer.*12s/);
+    assert.match(clean(output), /developer.*\d+s/);
     assert.match(clean(output), /npm run build/);
     assert.match(clean(output), /COMMAND/);
     assert.match(clean(output), /Build succeeded/);

@@ -112,7 +112,7 @@ If Node or Codex is missing, install it and reopen the terminal. Run `codex logi
 
 [Command reference](docs/COMMANDS.md) / [Upgrading and recovery](docs/UPGRADING.md) / [Contributing](CONTRIBUTING.md) / [Security](SECURITY.md)
 
-Run `node --test` for tests, `node .\scripts\preview-display.js` for an offline preview, `node .\scripts\check-syntax.js` for syntax validation, and `npm run lint` / `npm run format:check` for linting and code style. Continuous integration runs offline tests, syntax checks, linting, and formatting checks across Linux, macOS, and Windows runners on Node 22 and 24.
+Run `node --test` for tests, `node .\scripts\preview-display.js` for an offline preview, `node .\scripts\check-syntax.js` for syntax validation, and `npm run lint` / `npm run format:check` for linting and code style. Continuous integration runs offline tests, syntax checks, linting, and formatting checks across Linux and Windows runners on Node 22 and 24.
 
 ## License
 
