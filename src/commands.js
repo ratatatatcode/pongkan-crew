@@ -44,6 +44,7 @@ export const HELP = [
   'CHAT AND TASKS',
   '/discuss TOPIC                Two read-only crew rounds and lead summary',
   '/group                       Open shared Crew Chat',
+  '/share NAME [REQUEST]        Share latest private exchange in a duo Crew Chat',
   '@NAME MESSAGE                Read-only reply with shared chat context',
   '/chat [NAME]                  Return to chat, optionally select teammate',
   '/next /prev                   Cycle teammates and Crew Chat',
@@ -90,7 +91,8 @@ export const HELP = [
   '/new-all                      Fresh conversations for every teammate and Crew Chat',
   "/status                       Show the whole crew's current status",
   '/context [on|off|status]       Control local context clipping; inspect character counts',
-  '/markdown [on|off]            Save task and discussion Markdown in docs/pongkan-docs',
+  '/markdown [on|off]            Save finished workflows, discussions and tasks as Markdown',
+  '/markdown refresh             Regenerate finished exports; consolidate old task files',
   '/model [NAME]                 Show model settings and live status',
   '/model list                   Browse locally cached Codex models',
   '/model set NAME|all MODEL [EFFORT] Choose model for future tasks',
@@ -116,6 +118,7 @@ export const HELP = [
   'Esc                           Close panel / return to chat / clear input',
   'Tab on /command               Complete command or teammate name',
   'Shift+Left                   Queue prompt; resume paused dispatch',
+  'Shift+Enter                  Insert a new line without sending',
   'Tab / Shift+Tab               Cycle teammates and Crew Chat',
   'Up / Down                     Move input lines; history beyond first/last line',
   'Mouse wheel                   Scroll responses, activity or panels',
@@ -202,6 +205,16 @@ export function execute(app, line, { submission = 'enter' } = {}) {
     return;
   }
   if (!line.startsWith('/')) {
+    const sharing =
+      app.view === 'chat' &&
+      line.trim().match(/^(?:please\s+)?share this with ([a-z][a-z0-9-]*)(?:\s+([\s\S]+))?[.!]*$/i);
+    if (sharing) {
+      crew.discussions.share(app.selected, sharing[1].toLowerCase(), sharing[2], { submission });
+      app.view = 'group';
+      app.panel = null;
+      app.notice = 'Latest private exchange shared; replies appear in this Crew Chat.';
+      return;
+    }
     const mention = line.match(/^@([a-z][a-z0-9-]*)(?:[,:]?\s+)([\s\S]+)$/);
     if (
       !mention &&
@@ -213,9 +226,10 @@ export function execute(app, line, { submission = 'enter' } = {}) {
     ) {
       const flow = crew.workflows.start(crew.discussions.executionGoal(line), {
         sourceConversationId: crew.state.activeGroupConversation,
+        sourceDiscussionId: crew.discussions.current.id,
       });
-      app.selected = crew.leadName;
-      app.view = 'chat';
+      app.view = 'group';
+      app.scroll = 0;
       app.panel = null;
       app.notice = `Workflow ${flow.id} created from Crew Chat${crew.queue.paused ? '; /queue resume to start' : ''}.`;
       return;
@@ -239,7 +253,7 @@ export function execute(app, line, { submission = 'enter' } = {}) {
     return;
   }
   const [command, ...parts] = line.trim().split(/\s+/);
-  const text = parts.join(' ');
+  const text = line.trim().slice(command.length).trim();
   const requireText = value => {
     if (!value?.trim()) throw new Error(`Missing arguments. See /help for ${command}.`);
     return value;
@@ -476,6 +490,11 @@ export function execute(app, line, { submission = 'enter' } = {}) {
           throw new Error('Use one lowercase name, up to 32 letters, numbers or hyphens.');
         if (crew.state.members.some(m => m.name === next)) throw new Error('That teammate already exists.');
         member.name = next;
+        for (const discussion of crew.state.discussions)
+          if (discussion.participants)
+            discussion.participants = discussion.participants.map(participant =>
+              participant === name ? next : participant,
+            );
         for (const c of crew.state.conversations) if (c.member === name) c.member = next;
         for (const t of crew.state.tasks) if (t.conversationId && t.member === name) t.member = next;
         for (const job of crew.state.schedules) if (job.member === name) job.member = next;
@@ -514,8 +533,12 @@ export function execute(app, line, { submission = 'enter' } = {}) {
     } else throw new Error('Use /crew list|add|remove|rename|role|access|info|chat. See /help.');
   } else if (command === '/stop') {
     if (!parts[0] && app.view === 'group') {
+      const workflows = crew.discussions.associatedWorkflows().filter(flow => !TERMINAL.has(flow.status));
       crew.discussions.stop();
-      app.notice = 'Discussion stopped.';
+      for (const flow of workflows) crew.workflows.cancel(flow.id);
+      app.notice = workflows.length
+        ? `Crew Chat stopped; ${workflows.length} workflow(s) cancelled.`
+        : 'Discussion stopped.';
       return;
     }
     if (parts[0] === 'all') {
@@ -541,19 +564,20 @@ export function execute(app, line, { submission = 'enter' } = {}) {
       );
     }
     const isolated = parts[0] === '--isolated';
-    const goalText = isolated ? parts.slice(1).join(' ') : text;
+    const goalText = isolated ? text.slice('--isolated'.length).trim() : text;
     const request =
       command === '/crew-task'
         ? goalText || 'Implement the agreed plan from the latest Crew Chat discussion.'
         : requireText(goalText);
     const goal = command === '/crew-task' || app.view === 'group' ? crew.discussions.executionGoal(request) : request;
     const options = {
+      sourceDiscussionId: command === '/crew-task' || app.view === 'group' ? crew.discussions.current?.id : null,
       sourceConversationId:
         command === '/crew-task' || app.view === 'group' ? crew.state.activeGroupConversation : null,
     };
     const opened = flow => {
       if (flow.workspace) crew.conversations.open(flow.conversations[crew.leadName]);
-      if (command === '/crew-task') {
+      if (command === '/crew-task' || options.sourceDiscussionId || options.sourceConversationId) {
         app.view = 'group';
         app.panel = null;
         app.scroll = 0;
@@ -588,6 +612,12 @@ export function execute(app, line, { submission = 'enter' } = {}) {
   } else if (command === '/send') {
     crew.member(parts[0]);
     app.send(parts[0], requireText(parts.slice(1).join(' ')));
+  } else if (command === '/share') {
+    if (app.view !== 'chat') throw new Error('Open the individual Chat you want to share first.');
+    crew.discussions.share(app.selected, requireText(parts[0]), parts.slice(1).join(' '), { submission });
+    app.view = 'group';
+    app.panel = null;
+    app.notice = 'Latest private exchange shared; replies appear in this Crew Chat.';
   } else if (command === '/handoff') {
     crew.member(parts[0]);
     const answer = directMessages(crew.chatMember(app.selected)).findLast(m => m.role === 'assistant');
@@ -925,7 +955,13 @@ export function execute(app, line, { submission = 'enter' } = {}) {
       ];
     });
   } else if (command === '/markdown') {
-    if (parts.length > 1 || (text && !['on', 'off'].includes(text))) throw new Error('Use /markdown on|off.');
+    if (parts.length > 1 || (text && !['on', 'off', 'refresh'].includes(text)))
+      throw new Error('Use /markdown on|off|refresh.');
+    if (text === 'refresh') {
+      const result = crew.markdownExporter.refresh(crew.state);
+      app.notice = `Markdown exports refreshed: ${result.written} written, ${result.failed} failed.${result.failed ? ' See Activity for errors.' : ''}`;
+      return;
+    }
     if (text) crew.setMarkdown(text === 'on');
     app.notice = `Markdown saving ${crew.state.markdownEnabled ? 'ON' : 'OFF'}; destination: ${crew.folder}/docs/pongkan-docs. Existing documents are retained.`;
   } else if (command === '/context') {

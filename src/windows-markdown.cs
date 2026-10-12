@@ -23,6 +23,35 @@ public static class PongkanMarkdownWriter {
     static extern bool GetFileInformationByHandle(SafeFileHandle handle, out FileInfo info);
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     static extern bool MoveFileExW(string source, string target, uint flags);
+    [StructLayout(LayoutKind.Sequential)]
+    struct FileDisposition { [MarshalAs(UnmanagedType.Bool)] public bool Delete; }
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool SetFileInformationByHandle(SafeFileHandle handle, int kind, ref FileDisposition info, uint size);
+
+    static void RemoveOwnedExport(string path, string key) {
+        // Hold the leaf handle through ownership validation and deletion, so a
+        // replacement cannot be deleted between checking the marker and removal.
+        var handle = CreateFileW(path, 0x80010000, 1, IntPtr.Zero, 3, 0x00200000, IntPtr.Zero);
+        if (handle.IsInvalid) {
+            int error = Marshal.GetLastWin32Error(); handle.Dispose();
+            if (error == 2) return;
+            throw new Win32Exception(error, "Cannot inspect legacy Markdown export: " + path);
+        }
+        using (handle) {
+            FileInfo info;
+            if (!GetFileInformationByHandle(handle, out info)) throw new Win32Exception(Marshal.GetLastWin32Error());
+            if ((info.Attributes & 0x410) != 0 || info.Links != 1) return;
+            using (var stream = new FileStream(handle, FileAccess.Read))
+            using (var reader = new StreamReader(stream, Encoding.UTF8)) {
+                string marker = "<!-- pongkan-crew export " + key + " -->\n";
+                var prefix = new char[marker.Length];
+                if (reader.ReadBlock(prefix, 0, prefix.Length) != prefix.Length || new string(prefix) != marker) return;
+                var disposition = new FileDisposition { Delete = true };
+                if (!SetFileInformationByHandle(handle, 4, ref disposition, 4))
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), "Cannot remove legacy Markdown export: " + path);
+            }
+        }
+    }
 
     static SafeFileHandle LockDirectory(string path) {
         var handle = CreateFileW(path, 0x80000000, 3, IntPtr.Zero, 3, 0x02200000, IntPtr.Zero);
@@ -53,9 +82,15 @@ public static class PongkanMarkdownWriter {
         }
     }
     public static void Run(string folder, string key, string content, Action beforeWrite) {
+        Run(folder, key, content, beforeWrite, null);
+    }
+    public static void Run(string folder, string key, string content, Action beforeWrite, string[] obsolete) {
         if (String.IsNullOrEmpty(key)) key = null;
-        if (key != null && !System.Text.RegularExpressions.Regex.IsMatch(key, "\\A(task|discussion)-[a-f0-9]{8}\\z"))
+        if (key != null && !System.Text.RegularExpressions.Regex.IsMatch(key, "\\A(task|discussion|workflow)-[a-f0-9]{8}\\z"))
             throw new IOException("Invalid Markdown record ID");
+        foreach (string name in obsolete ?? new string[0])
+            if (name == key || !System.Text.RegularExpressions.Regex.IsMatch(name, "\\Atask-[a-f0-9]{8}\\z"))
+                throw new IOException("Invalid obsolete Markdown record ID");
         var handles = new List<SafeFileHandle>();
         try {
             string full = Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar);
@@ -89,6 +124,7 @@ public static class PongkanMarkdownWriter {
                 CheckDestination(destination, marker);
                 if (!MoveFileExW(temporary, destination, 9)) throw new Win32Exception(Marshal.GetLastWin32Error(), "Cannot replace Markdown document: " + destination);
                 created = false;
+                foreach (string name in obsolete ?? new string[0]) RemoveOwnedExport(Path.Combine(path, name + ".md"), name);
             } finally { if (created) File.Delete(temporary); }
         } finally {
             for (int index = handles.Count - 1; index >= 0; index--) handles[index].Dispose();

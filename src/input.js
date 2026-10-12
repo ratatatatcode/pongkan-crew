@@ -28,6 +28,12 @@ export function layoutInput(text, cursor, label, width, maxRows = 5) {
   const rows = [{ text: '', start: 0 }];
   let offset = 0;
   for (const { segment } of segmenter.segment(text)) {
+    if (segment === '\n') {
+      rows.at(-1).end = offset;
+      offset++;
+      rows.push({ text: '', start: offset });
+      continue;
+    }
     if (cellWidth(rows.at(-1).text) + cellWidth(segment) > available) rows.push({ text: '', start: offset });
     rows.at(-1).text += segment;
     offset += Array.from(segment).length;
@@ -69,11 +75,20 @@ export function layoutInput(text, cursor, label, width, maxRows = 5) {
     up: move(-1),
     down: move(1),
     lineStart: rows[cursorRow].start,
-    lineEnd: rows[cursorRow + 1]
-      ? rows[cursorRow + 1].start -
-        Array.from([...segmenter.segment(rows[cursorRow].text)].at(-1)?.segment || '').length
-      : chars.length,
+    lineEnd:
+      rows[cursorRow].end ??
+      (rows[cursorRow + 1]
+        ? rows[cursorRow + 1].start -
+          Array.from([...segmenter.segment(rows[cursorRow].text)].at(-1)?.segment || '').length
+        : chars.length),
   };
+}
+
+export function promptEnterAction(str, key = {}) {
+  if (['\x1b[13;2u', '\x1b[27;2;13~'].includes(key.sequence || str)) return 'newline';
+  if (key.name === 'return') return key.shift ? 'newline' : 'submit';
+  if (key.name === 'enter') return 'newline';
+  return null;
 }
 
 export function navigateInput(text, cursor, key, label, width) {

@@ -11,6 +11,8 @@ import {
   renameSync,
   readdirSync,
   statSync,
+  unlinkSync,
+  linkSync,
 } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { MarkdownExporter } from '../src/markdown-export.js';
@@ -67,7 +69,7 @@ test('toggle defaults off, creates directories, updates snapshots and stops subs
   assert.equal(existsSync(f.path('12345678')), false);
   Object.assign(f.state.tasks[0], { result: '# First response', status: 'waiting', question: 'Which option?' });
   f.crew.save();
-  assert.match(readFileSync(f.path('12345678'), 'utf8'), /Original requirement[\s\S]*First response/);
+  assert.equal(existsSync(f.path('12345678')), false);
   Object.assign(f.state.tasks[0], {
     result: '# Continued response',
     status: 'completed',
@@ -86,7 +88,190 @@ test('toggle defaults off, creates directories, updates snapshots and stops subs
   assert.throws(() => execute(f.app, '/markdown bogus'), /Use \/markdown/);
 });
 
-test('discussion saves incremental ordered messages and reports conflicts without losing results', t => {
+test('Markdown exports preserve Unicode punctuation and multilingual text exactly', t => {
+  const f = fixture(t);
+  execute(f.app, '/markdown on');
+  const text = 'Researcher\u2019s guidance \u2014 \u201cReady\u201d \u2022 caf\u00e9 \u4e2d\u6587 \ud83c\udf4a';
+  f.state.tasks.push({
+    id: '12345678',
+    member: 'chief',
+    kind: 'message',
+    status: 'completed',
+    createdAt: 1,
+    text,
+    result: text,
+  });
+  f.state.discussions.push({
+    id: 'abcdef12',
+    status: 'completed',
+    taskIds: [],
+    createdAt: 1,
+    messages: [{ role: 'assistant', speaker: 'chief', text }],
+  });
+  f.crew.save();
+  assert.equal(f.notices.length, 0);
+  assert.ok(readFileSync(f.path('12345678'), 'utf8').includes(text));
+  assert.ok(readFileSync(join(f.folder, 'docs', 'pongkan-docs', 'discussion-abcdef12.md'), 'utf8').includes(text));
+});
+
+test('workflow writes one complete document and discussion tasks never create duplicate exports', t => {
+  const f = fixture(t);
+  execute(f.app, '/markdown on');
+  const workflow = { id: 'aabbccdd', text: 'Build navigation', lead: 'chief', status: 'working', createdAt: 1 };
+  f.state.workflows.push(workflow);
+  f.state.tasks.push(
+    {
+      id: '12345678',
+      workflowId: workflow.id,
+      member: 'developer',
+      kind: 'work',
+      status: 'completed',
+      text: 'Build it',
+      result: 'Implemented links',
+    },
+    {
+      id: '87654321',
+      workflowId: workflow.id,
+      member: 'reviewer',
+      kind: 'review',
+      status: 'running',
+      text: 'Review it',
+    },
+    {
+      id: '11223344',
+      discussionId: 'abcdef12',
+      member: 'chief',
+      kind: 'message',
+      status: 'completed',
+      result: 'Discussed layout',
+    },
+  );
+  f.state.discussions.push({
+    id: 'abcdef12',
+    status: 'working',
+    taskIds: ['11223344'],
+    messages: [{ role: 'assistant', speaker: 'chief', text: 'Discussed layout' }],
+  });
+  f.crew.save();
+  assert.deepEqual(readdirSync(join(f.folder, 'docs', 'pongkan-docs')), []);
+  workflow.status = 'completed';
+  f.state.tasks[1].status = 'completed';
+  f.state.tasks[1].result = 'Keyboard checks passed';
+  f.state.discussions[0].status = 'completed';
+  f.crew.save();
+  const directory = join(f.folder, 'docs', 'pongkan-docs');
+  assert.deepEqual(readdirSync(directory).sort(), ['discussion-abcdef12.md', 'workflow-aabbccdd.md']);
+  const output = readFileSync(join(directory, 'workflow-aabbccdd.md'), 'utf8');
+  assert.match(output, /Build navigation[\s\S]*Implemented links[\s\S]*Keyboard checks passed/);
+  const before = statSync(join(directory, 'workflow-aabbccdd.md')).mtimeMs;
+  f.crew.save();
+  assert.equal(statSync(join(directory, 'workflow-aabbccdd.md')).mtimeMs, before);
+});
+
+test('refresh consolidates legacy exports only after writing their completed parent', t => {
+  const f = fixture(t);
+  execute(f.app, '/markdown on');
+  const directory = join(f.folder, 'docs', 'pongkan-docs');
+  f.state.workflows.push({
+    id: 'aabbccdd',
+    text: 'Failed build',
+    lead: 'chief',
+    status: 'failed',
+    createdAt: 1,
+    error: 'Review failed',
+  });
+  f.state.tasks.push({
+    id: '12345678',
+    workflowId: 'aabbccdd',
+    member: 'developer',
+    status: 'completed',
+    result: 'Retained implementation',
+  });
+  writeFileSync(f.path('12345678'), '<!-- pongkan-crew export task-12345678 -->\nLegacy response');
+  writeFileSync(join(directory, 'workflow-aabbccdd.md'), 'Unrelated document');
+  assert.equal(f.exporter.refresh(f.state).failed, 1);
+  assert.ok(existsSync(f.path('12345678')));
+  unlinkSync(join(directory, 'workflow-aabbccdd.md'));
+  const before = JSON.stringify(f.state);
+  assert.equal(f.exporter.refresh(f.state).written, 1);
+  assert.equal(existsSync(f.path('12345678')), false);
+  assert.match(
+    readFileSync(join(directory, 'workflow-aabbccdd.md'), 'utf8'),
+    /Review failed[\s\S]*Retained implementation/,
+  );
+  assert.equal(JSON.stringify(f.state), before);
+  writeFileSync(f.path('12345678'), 'Human notes');
+  f.exporter.refresh(f.state);
+  assert.equal(readFileSync(f.path('12345678'), 'utf8'), 'Human notes');
+});
+
+test('consolidation preserves hard-linked files and discussion history', t => {
+  const f = fixture(t);
+  execute(f.app, '/markdown on');
+  const directory = join(f.folder, 'docs', 'pongkan-docs');
+  f.state.tasks.push(
+    { id: '12345678', discussionId: 'abcdef12', status: 'completed', result: 'Shared findings' },
+    { id: '87654321', discussionId: 'abcdef12', status: 'cancelled' },
+  );
+  f.state.discussions.push({
+    id: 'abcdef12',
+    status: 'cancelled',
+    taskIds: ['12345678', '87654321'],
+    messages: [{ role: 'assistant', speaker: 'chief', text: 'Shared findings' }],
+  });
+  writeFileSync(f.path('12345678'), '<!-- pongkan-crew export task-12345678 -->\nOwned legacy export');
+  writeFileSync(f.path('87654321'), '<!-- pongkan-crew export task-87654321 -->\nHard-linked export');
+  linkSync(f.path('87654321'), join(f.folder, 'keep.md'));
+  assert.equal(f.exporter.refresh(f.state).written, 1);
+  assert.equal(existsSync(f.path('12345678')), false);
+  assert.equal(existsSync(f.path('87654321')), true);
+  assert.match(readFileSync(join(directory, 'discussion-abcdef12.md'), 'utf8'), /Shared findings/);
+  assert.match(readFileSync(join(f.folder, 'keep.md'), 'utf8'), /Hard-linked export/);
+});
+
+test('failed workflows wait for running workers to settle before exporting', t => {
+  const f = fixture(t);
+  execute(f.app, '/markdown on');
+  f.state.workflows.push({ id: 'aabbccdd', text: 'Interrupted work', status: 'failed' });
+  const task = { id: '12345678', workflowId: 'aabbccdd', status: 'running', result: 'Partial result' };
+  f.state.tasks.push(task);
+  const path = join(f.folder, 'docs', 'pongkan-docs', 'workflow-aabbccdd.md');
+  f.crew.save();
+  assert.equal(existsSync(path), false);
+  task.status = 'cancelled';
+  f.crew.save();
+  assert.match(readFileSync(path, 'utf8'), /Partial result/);
+});
+
+test('refresh regenerates corrupted exports from saved history without changing source records', t => {
+  const f = fixture(t);
+  f.crew.markdownExporter = f.exporter;
+  assert.throws(() => execute(f.app, '/markdown refresh'), /on/i);
+  execute(f.app, '/markdown on');
+  f.state.tasks.push({
+    id: '12345678',
+    member: 'chief',
+    kind: 'message',
+    status: 'completed',
+    createdAt: 1,
+    text: 'Review',
+    result: 'Researcher\u2019s guidance',
+  });
+  f.crew.save();
+  writeFileSync(f.path('12345678'), '<!-- pongkan-crew export task-12345678 -->\nCorrupted export\n');
+  const before = JSON.stringify(f.state);
+  execute(f.app, '/markdown refresh');
+  assert.equal(JSON.stringify(f.state), before);
+  assert.ok(readFileSync(f.path('12345678'), 'utf8').includes('Researcher\u2019s guidance'));
+  assert.match(f.app.notice, /refreshed/i);
+  writeFileSync(f.path('12345678'), 'Unrelated document\n');
+  execute(f.app, '/markdown refresh');
+  assert.equal(readFileSync(f.path('12345678'), 'utf8'), 'Unrelated document\n');
+  assert.match(f.app.notice, /0 written, 1 failed/);
+  assert.ok(f.notices.some(notice => notice.includes('Markdown filename conflict')));
+});
+
+test('discussion exports only when finished and reports conflicts without losing results', t => {
   const f = fixture(t);
   execute(f.app, '/markdown on');
   f.state.discussions.push({
@@ -98,6 +283,9 @@ test('discussion saves incremental ordered messages and reports conflicts withou
   });
   f.crew.save();
   f.state.discussions[0].messages.push({ role: 'assistant', speaker: 'chief', text: '**Agreed**' });
+  f.crew.save();
+  assert.equal(existsSync(join(f.folder, 'docs', 'pongkan-docs', 'discussion-abcdef12.md')), false);
+  f.state.discussions[0].status = 'completed';
   f.crew.save();
   assert.match(
     readFileSync(join(f.folder, 'docs', 'pongkan-docs', 'discussion-abcdef12.md'), 'utf8'),
@@ -128,6 +316,9 @@ test('discussion exports distinguish submission shortcuts and waiting prompts fr
   f.state.discussions.push(discussion);
   f.crew.save();
   const file = join(f.folder, 'docs', 'pongkan-docs', 'discussion-abcdef12.md');
+  assert.equal(existsSync(file), false);
+  discussion.status = 'cancelled';
+  f.crew.save();
   let content = readFileSync(file, 'utf8');
   assert.match(content, /Submitted with: Enter/);
   assert.match(content, /Submitted with: Shift\+Left/);

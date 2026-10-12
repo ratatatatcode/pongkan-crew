@@ -26,7 +26,8 @@ export const COMMAND_EXAMPLES = {
   '/next': '/next; then /prev to go back (enter separately)',
   '/task': '/task Add keyboard navigation, test it, and review changes.',
   '/send': '/send researcher Inspect navigation risks without editing.',
-  '/crew-task': '/crew-task; /crew-task --isolated (enter separately)',
+  '/crew-task':
+    "/crew-task Proceed with what you've discussed.; /crew-task --isolated Proceed with what you've discussed. (enter separately)",
   '/conversation list': '/conversation list',
   '/conversation new': '/conversation new developer Login fixes',
   '/conversation open': '/conversation open CHAT_ID',
@@ -40,6 +41,7 @@ export const COMMAND_EXAMPLES = {
   '/github issue': '/github issue OWNER/REPO 12',
   '/github task': '/github task OWNER/REPO 12 --isolated',
   '/handoff': '/handoff developer Implement the agreed navigation.',
+  '/share': '/share reviewer Review keyboard support in these findings.',
   '/retry': '/retry (may repeat edits)',
   '/questions': '/questions list; /questions off (enter separately)',
   '/answer': '/answer TASK_ID Use inline editing.',
@@ -60,6 +62,7 @@ export const COMMAND_EXAMPLES = {
   '/model [': '/model developer',
   '/model list': '/model list',
   '/context': '/context on; /context status; /context off (enter separately)',
+  '/markdown refresh': '/markdown refresh',
   '/markdown': '/markdown on; /markdown; /markdown off (enter separately)',
   '/model set':
     '/model set all gpt-5.4 medium; /model set developer gpt-5.4 high (enter separately; check /model list first)',

@@ -14,11 +14,11 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 
-function windowsWrite(folder, key = null, content = null) {
+function windowsWrite(folder, key = null, content = null, obsolete = []) {
   const script = fileURLToPath(new URL('./windows-markdown.ps1', import.meta.url));
   try {
     const output = execFileSync('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', script], {
-      input: JSON.stringify({ folder, key, content }),
+      input: JSON.stringify({ folder, key, content, obsolete }),
       encoding: 'utf8',
       windowsHide: true,
       env: { ...process.env, TEMP: folder, TMP: folder },
@@ -76,9 +76,11 @@ export function markdownDirectory(folder) {
   else pinnedDirectory(folder, () => {});
   return join(folder, 'docs', 'pongkan-docs');
 }
-export function writeMarkdown(folder, key, content) {
-  if (!/^(task|discussion)-[a-f0-9]{8}$/.test(key)) throw new Error('Invalid Markdown record ID');
-  if (process.platform === 'win32') return windowsWrite(folder, key, content);
+export function writeMarkdown(folder, key, content, obsolete = []) {
+  if (!/^(task|discussion|workflow)-[a-f0-9]{8}$/.test(key)) throw new Error('Invalid Markdown record ID');
+  if (!Array.isArray(obsolete) || obsolete.some(name => !/^task-[a-f0-9]{8}$/.test(name) || name === key))
+    throw new Error('Invalid obsolete Markdown record ID');
+  if (process.platform === 'win32') return windowsWrite(folder, key, content, obsolete);
   return pinnedDirectory(folder, directory => {
     const path = join(directory, `${key}.md`),
       marker = `<!-- pongkan-crew export ${key} -->\n`;
@@ -107,6 +109,27 @@ export function writeMarkdown(folder, key, content) {
       check();
       renameSync(temporary, path);
       created = false;
+      for (const name of obsolete) {
+        const legacy = join(directory, `${name}.md`);
+        let descriptor;
+        try {
+          descriptor = openSync(legacy, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+        } catch (error) {
+          if (['ENOENT', 'ELOOP'].includes(error.code)) continue;
+          throw error;
+        }
+        try {
+          const info = fstatSync(descriptor);
+          if (
+            info.isFile() &&
+            info.nlink === 1 &&
+            readFileSync(descriptor, 'utf8').startsWith(`<!-- pongkan-crew export ${name} -->\n`)
+          )
+            unlinkSync(legacy);
+        } finally {
+          closeSync(descriptor);
+        }
+      }
     } finally {
       if (created) unlinkSync(temporary);
     }

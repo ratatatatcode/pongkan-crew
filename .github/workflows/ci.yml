@@ -46,7 +46,9 @@ jobs:
 
       - name: Verify ignore rules for sensitive paths
         run: |
-          git check-ignore .pongkan-crew/state.json .env .env.local .aws/credentials .ssh/id_rsa .codex/auth.json credentials.json server.key > /dev/null
+          for path in .pongkan-crew/state.json .env .env.local .aws/credentials .ssh/id_rsa .codex/auth.json credentials.json server.key; do
+            git check-ignore -q -- "$path" || { echo "Sensitive path is not ignored: $path"; exit 1; }
+          done
           echo "Sensitive file patterns are correctly ignored."
 
   test:

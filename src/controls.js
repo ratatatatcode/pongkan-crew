@@ -41,6 +41,7 @@ const COMMANDS = [
   '/task',
   '/send',
   '/handoff',
+  '/share',
   '/retry',
   '/stop',
   '/clear',
@@ -48,6 +49,7 @@ const COMMANDS = [
   '/markdown',
   '/markdown on',
   '/markdown off',
+  '/markdown refresh',
   '/context',
   '/context on',
   '/context off',
@@ -130,7 +132,9 @@ export function completions(input, names, presetNames = ['default', 'web', 'mobi
   const modelTarget = input.match(/^(\/model (?:set|reset))\s+(\S*)$/);
   if (modelTarget)
     return [...names, 'all'].filter(name => name.startsWith(modelTarget[2])).map(name => `${modelTarget[1]} ${name}`);
-  const match = input.match(/^(\/(?:chat|send|handoff|stop)|\/crew (?:remove|rename|role|access|info|chat))\s+(\S*)$/);
+  const match = input.match(
+    /^(\/(?:chat|send|handoff|share|stop)|\/crew (?:remove|rename|role|access|info|chat))\s+(\S*)$/,
+  );
   if (match)
     return [...names, ...(match[1] === '/stop' ? ['all'] : [])]
       .filter(n => n.startsWith(match[2]))

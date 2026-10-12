@@ -1,9 +1,21 @@
 import { join } from 'node:path';
 import { writeMarkdown } from './markdown-write.js';
+import { TERMINAL } from './tasks.js';
 export { markdownDirectory } from './markdown-write.js';
 const label = name => String(name).replace(/^./, first => first.toUpperCase());
 const section = (name, text) => (text === undefined || text === '' ? '' : `\n## ${name}\n\n${text}\n`);
 function snapshot(kind, record) {
+  if (kind === 'workflow')
+    return {
+      id: record.id,
+      status: record.status,
+      createdAt: record.createdAt,
+      finishedAt: record.finishedAt,
+      text: record.text,
+      error: record.error,
+      result: record.result,
+      tasks: record.tasks.map(task => snapshot('task', task)),
+    };
   if (kind === 'discussion')
     return { id: record.id, status: record.status, createdAt: record.createdAt, messages: record.messages };
   return Object.fromEntries(
@@ -33,7 +45,11 @@ function render(kind, record, marker) {
     if (record[key]) text += `${label(key)}: ${key === 'member' ? label(record[key]) : record[key]}\n`;
   for (const key of ['createdAt', 'startedAt', 'finishedAt'])
     if (Number.isFinite(record[key])) text += `${label(key)}: ${new Date(record[key]).toISOString()}\n`;
-  if (kind === 'discussion') {
+  if (kind === 'workflow') {
+    text += section('Goal', record.text) + section('Error', record.error);
+    for (const task of record.tasks) text += '\n---\n' + render('task', task, '');
+    text += section('Final summary', record.result);
+  } else if (kind === 'discussion') {
     const messages = (record.messages || [])
       .map((message, index) => ({ message, order: message.discussionMessageIndex ?? index }))
       .sort((a, b) => a.order - b.order);
@@ -61,38 +77,61 @@ function render(kind, record, marker) {
   }
   return text;
 }
+
+function* exportsFor(state) {
+  const workflowTasks = new Map(),
+    discussionTasks = new Map();
+  for (const task of state.tasks) {
+    const group = task.workflowId ? workflowTasks : task.discussionId ? discussionTasks : null;
+    if (group) {
+      const id = task.workflowId || task.discussionId;
+      if (!group.has(id)) group.set(id, []);
+      group.get(id).push(task);
+    } else if (TERMINAL.has(task.status)) yield { kind: 'task', record: snapshot('task', task), obsolete: [] };
+  }
+  for (const [kind, sources, groups] of [
+    ['workflow', state.workflows || [], workflowTasks],
+    ['discussion', state.discussions, discussionTasks],
+  ]) {
+    for (const source of sources) {
+      const tasks = groups.get(source.id) || [];
+      if (!TERMINAL.has(source.status) || tasks.some(task => !TERMINAL.has(task.status))) continue;
+      yield { kind, record: snapshot(kind, { ...source, tasks }), obsolete: tasks.map(task => `task-${task.id}`) };
+    }
+  }
+}
 export class MarkdownExporter {
   constructor(crew) {
     this.crew = crew;
     this.records = new Map();
-    for (const [kind, records] of [
-      ['task', crew.state.tasks],
-      ['discussion', crew.state.discussions],
-    ]) {
-      for (const record of records) this.records.set(`${kind}-${record.id}`, JSON.stringify(snapshot(kind, record)));
-    }
+    for (const { kind, record } of exportsFor(crew.state))
+      this.records.set(`${kind}-${record.id}`, JSON.stringify(record));
   }
-  save(state) {
-    for (const [kind, records] of [
-      ['task', state.tasks],
-      ['discussion', state.discussions],
-    ]) {
-      for (const source of records) {
-        const record = snapshot(kind, source),
-          key = `${kind}-${record.id}`,
-          serialized = JSON.stringify(record);
-        if (this.records.get(key) === serialized) continue;
-        this.records.set(key, serialized);
-        if (!state.markdownEnabled) continue;
-        let path = join(this.crew.folder, 'docs', 'pongkan-docs', `${key}.md`);
-        try {
-          if (!/^[a-f0-9]{8}$/.test(record.id)) throw new Error('Invalid Markdown record ID');
-          const marker = `<!-- pongkan-crew export ${key} -->`;
-          writeMarkdown(this.crew.folder, key, render(kind, record, marker));
-        } catch (error) {
-          this.crew.notify(`Markdown save failed: ${path}: ${error.message}`);
-        }
+  save(state, { consolidate = false } = {}) {
+    let written = 0,
+      failed = 0;
+    for (const { kind, record, obsolete } of exportsFor(state)) {
+      const key = `${kind}-${record.id}`,
+        serialized = JSON.stringify(record);
+      if (this.records.get(key) === serialized) continue;
+      this.records.set(key, serialized);
+      if (!state.markdownEnabled) continue;
+      let path = join(this.crew.folder, 'docs', 'pongkan-docs', `${key}.md`);
+      try {
+        if (!/^[a-f0-9]{8}$/.test(record.id)) throw new Error('Invalid Markdown record ID');
+        const marker = `<!-- pongkan-crew export ${key} -->`;
+        writeMarkdown(this.crew.folder, key, render(kind, record, marker), consolidate ? obsolete : []);
+        written++;
+      } catch (error) {
+        failed++;
+        this.crew.notify(`Markdown save failed: ${path}: ${error.message}`);
       }
     }
+    return { written, failed };
+  }
+  refresh(state) {
+    if (!state.markdownEnabled) throw new Error('Enable /markdown on before refreshing exports.');
+    this.records.clear();
+    return this.save(state, { consolidate: true });
   }
 }

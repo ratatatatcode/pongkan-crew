@@ -2,9 +2,13 @@
 
 ## Markdown saving
 
-`/markdown on` enables task and Crew Chat exports and creates `docs/pongkan-docs/` in the selected project. `/markdown off` stops subsequent exports without deleting documents. `/markdown` reports the mode and destination. The setting persists per project and defaults to off.
+`/markdown on` enables exports of finished work and creates `docs/pongkan-docs/` in the selected project. `/markdown off` stops subsequent exports without deleting documents. `/markdown` reports the mode and destination. The setting persists per project and defaults to off.
 
-Changed records save as `task-<id>.md` or `discussion-<id>.md`. Continuations update the same task file; retries have separate IDs. Follow-ups queued during an active discussion update that discussion's file; follow-ups after completion create a new discussion ID with copied history. Exports include full saved responses, status, prompts, clarification answers, and speaker labels. Crew Chat user prompts record `Submitted with: Enter (preserve queue pause)` or `Submitted with: Shift+Left (queue and resume dispatch)`, submission/start times, and `Waiting for earlier prompts to finish` until started. Replies are grouped with their original prompt. Older saved messages without this metadata retain their original labels. Enabling does not backfill unchanged history. Export failures appear in Activity while original results remain saved. Unrelated existing files and redirected paths are rejected.
+Exports use UTF-8, including smart punctuation and multilingual text. `/markdown refresh` regenerates finished exports from saved history while saving is on. It also consolidates older per-task workflow/discussion exports: after the combined document is safely written, it removes matching task files bearing the app's ownership marker. Unrelated files, redirected paths, and hard-linked files are preserved. Refresh reports written/failed counts; failures appear in Activity. It preserves source history and can repair files affected by an older encoding bug.
+
+Each finished workflow saves one `workflow-<id>.md` containing its assignments, teammate results, review, and summary. Each finished discussion saves one `discussion-<id>.md`; its individual turns do not create separate task files. Standalone tasks save as `task-<id>.md`. Running, queued, and waiting work is not exported. Completed, failed, cancelled, and interrupted work is exported after its task turns settle, preserving partial findings and errors. Follow-ups after a discussion finishes create a new discussion ID with copied history; workflow retries have separate IDs.
+
+Exports include full saved responses, prompts, clarification answers, changed-file names, and speaker labels. Discussion exports retain Enter versus Shift+Left submission metadata and group replies with their original prompt. Live progress remains in Chat, Crew Chat, and Activity instead of being repeatedly written to Markdown. Enabling does not backfill unchanged history; use refresh for that. Export files are not automatically included in model context.
 
 Safe writing uses a PowerShell/.NET directory-lock helper on Windows and directory descriptors on Linux with `/proc/self/fd`. Other platforms currently report an unsupported-platform error when saving is enabled.
 
@@ -16,9 +20,17 @@ Plain text goes to the selected teammate in Chat or continues the shared read-on
 
 During an active Crew Chat discussion, new prompts wait until all turns for the current prompt finish, including its summary. They do not change the context of unfinished earlier turns. Queued prompts stay outside the live transcript with a waiting count and appear when their replies begin. Enter sends without changing the queue's paused state. Shift+Left queues the typed prompt and resumes paused dispatch, including other eligible queued tasks. Neither requires interrupting the current reply. Sending opens the conversation by closing any open panel. Tab remains teammate navigation or command/mention completion.
 
-`/crew-task [GOAL]` uses the latest Crew Chat as context from any tab. Without a goal, it asks the lead to implement the agreed plan; with a goal, it uses that instruction plus the discussion. It requires a nonempty Crew Chat and waits for you to finish or stop an active discussion. It creates a coordinated workflow and opens Crew Chat, where the lead's plan, teammate replies, review and final summary appear as turns finish. `/task GOAL` opens the lead's individual Chat and only attaches Crew Chat automatically when invoked from that view.
+`/crew-task [GOAL]` uses the latest Crew Chat as context from any tab. Without a goal, it asks the lead to implement the agreed plan; with a goal, it uses that instruction plus the discussion. It requires a nonempty Crew Chat and waits for you to finish or stop an active discussion. It creates a coordinated workflow and opens Crew Chat, where the lead's plan, teammate replies, review and final summary appear as turns finish. `/task GOAL` includes Crew Chat history and stays there when started from Crew Chat; otherwise it opens the lead's individual Chat.
 
 ## Chat, assignments, and discussions
+
+### Explicit sharing from individual Chat
+
+`/share NAME [REQUEST]` copies the selected individual chat's latest completed user/assistant exchange into a new named Crew Chat for the selected teammate and NAME. For example, from Developer's Chat use `/share reviewer Review keyboard support` or `share this with Reviewer for review`. Both teammates discuss the request read-only; their replies and participant names appear in Crew Chat. Follow-ups keep the same participants. Use `/conversation list` and `/conversation open ID` to return to the shared chat later.
+
+Sharing requires a completed reply and another existing teammate. A running, queued, or unanswered private turn must finish first. Only the latest exchange is shared, including its full text; older exchanges and other private chats are not imported. An ordinary mention or a teammate suggesting collaboration does not trigger sharing. `/handoff NAME [TASK]` continues to send a direct assignment rather than open a shared conversation.
+
+When discussion finishes, `/crew-task [GOAL]` includes the shared findings in execution. `/crew-task --isolated [GOAL]` also carries that explicit context, while creating fresh private sessions in a separate Git worktree. Execution may involve additional crew specialists beyond the discussion participants.
 
 | Command                          | Purpose                                                                       | Sample usage                                                             |
 | -------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
@@ -38,6 +50,8 @@ During an active Crew Chat discussion, new prompts wait until all turns for the 
 | `@NAME MESSAGE`                  | Request one read-only reply using the latest shared discussion                | `@developer How will you preserve invalid stored data?`                  |
 
 For ordered implementation and review, use `/task`; direct tasks are independent. Discussions and mentions are read-only. Crew Chat shows readable plans and full teammate responses with speaker labels. Activity shows workflow IDs, task status and handoff records; raw tasks remain available through `/queue show ID`. Handoffs and retries can trigger edits; inspect changes first.
+
+Workflows started from Crew Chat include automatic execution conversations for each assignment: the lead briefs the worker, the worker responds while implementing, the reviewer gives feedback, and the worker addresses it before the final review and summary. Each reply appears when its turn finishes. Exchanges are sequential and bounded, with three additional model turns per assignment. Workflow handoffs supply earlier results once in each prompt; generated prompts from that workflow are excluded from recovered conversation history. Full saved history remains available. Use `/context on` to locally shorten long optional context without changing saved history. In Crew Chat, `/stop` cancels its discussion and associated workflows. Use `/stop all` to stop all work, or `/workflow cancel ID` to stop one workflow. A standalone `/task` outside Crew Chat keeps the shorter workflow.
 
 ## Conversations, isolated work, and automation
 
@@ -67,13 +81,13 @@ For ordered implementation and review, use `/task`; direct tasks are independent
 | `/github pr OWNER/REPO NUMBER`                | Read a PR's title/body/status                                                                |
 | `/github task OWNER/REPO NUMBER [--isolated]` | Create local work from an issue; no GitHub writes                                            |
 
-Worktrees require a committed repository root and clean tracked files, start from `HEAD`, and do not copy untracked setup or dependencies. One writer runs per workspace; separate worktrees can run concurrently. Retain/review the branches and explicitly commit/merge with Git. `/workflow show ID` links teammate chats. The default Crew Chat aggregates workflow activity; named shared chats filter to their originating workflows. Named chats preserve context and task destinations when switching. `/new` opens a blank named chat; `/clear` applies only to legacy individual chats.
+Worktrees require a committed repository root and clean tracked files, start from `HEAD`, and do not copy untracked setup or dependencies. One writer runs per workspace; separate worktrees can run concurrently. Retain/review the branches and explicitly commit/merge with Git. `/workflow show ID` links teammate chats. Crew Chat shows workflows linked to its discussion or named conversation. Named chats preserve context and task destinations when switching. `/new` opens a blank named chat; `/clear` applies only to legacy individual chats.
 
 Memory lives in `.pongkan-crew/project-memory.json` (up to 50 entries, 2,000 characters each, 40 KB total). It is user-maintained guidance, not extra authority. Steering does not interrupt commands: running tasks continue with corrections after the current turn, queued tasks receive them when dispatched, and workflow guidance carries forward. `/queue show ID` includes delivery timestamps. Waiting questions still require `/answer`.
 
 Schedules run inside the open app or a headless process: `node src/cli.js --folder PROJECT_PATH --worker`. Add `--once` for a periodic Windows Task Scheduler invocation: due jobs are dispatched once, active turns finish, and the process exits. A persistent worker can be launched by Task Scheduler to survive closing CMD; no system task is installed automatically. Use absolute executable/script/project paths. The folder lock prevents running the interactive app and worker on the same state simultaneously. Keep the machine on; inspect and recover paused/interrupted work explicitly. Missed intervals coalesce and a schedule never overlaps its prior pending task. Human approval/clarification still requires interactive attention. GitHub integration requires an installed, authenticated GitHub CLI.
 
-After a Crew Chat discussion finishes, `Proceed with that`, `Go ahead`, or `Implement the plan` starts a workflow with the prior discussion attached and switches to the lead's chat. Other messages continue the discussion; `@NAME` always requests a read-only discussion reply. For a specific execution instruction, use `/task YOUR_GOAL` from Crew Chat. Wait for an active discussion to finish or stop it with `/stop` before starting execution.
+After a Crew Chat discussion finishes, `Proceed with that`, `Go ahead`, or `Implement the plan` starts a workflow with the prior discussion attached and stays in Crew Chat. Other messages continue the discussion; `@NAME` always requests a read-only discussion reply. For a specific execution instruction, use `/task YOUR_GOAL` from Crew Chat. Wait for an active discussion to finish or stop it with `/stop` before starting execution.
 
 Individual follow-ups include saved history even when resuming a Codex session. `/context on` can shorten assistant history; `/context off` sends saved history without local clipping. Discussion sessions remain separate from individual sessions.
 
@@ -103,14 +117,14 @@ Questions off does not bypass permissions. Teammates can use existing approvals 
 
 ## Stop and cancel
 
-| Command                        | Purpose                                                                 | Sample usage                   |
-| ------------------------------ | ----------------------------------------------------------------------- | ------------------------------ |
-| `/stop`                        | Stop selected teammate's active work; in Crew Chat, stop the discussion | `/stop`                        |
-| `/stop NAME`                   | Stop a named teammate's active task                                     | `/stop developer`              |
-| `/stop all`                    | Pause dispatch and cancel all queued, waiting, and running work         | `/stop all`                    |
-| `/queue cancel TASK_ID`        | Cancel a queued, waiting, or running task                               | `/queue cancel TASK_ID`        |
-| `/workflow cancel WORKFLOW_ID` | Cancel a workflow and its remaining assignments                         | `/workflow cancel WORKFLOW_ID` |
-| `/quit` or `/exit`             | Stop active work and exit the CLI                                       | `/quit`                        |
+| Command                        | Purpose                                                             | Sample usage                   |
+| ------------------------------ | ------------------------------------------------------------------- | ------------------------------ |
+| `/stop`                        | Stop selected work; in Crew Chat, stop its discussion and workflows | `/stop`                        |
+| `/stop NAME`                   | Stop a named teammate's active task                                 | `/stop developer`              |
+| `/stop all`                    | Pause dispatch and cancel all queued, waiting, and running work     | `/stop all`                    |
+| `/queue cancel TASK_ID`        | Cancel a queued, waiting, or running task                           | `/queue cancel TASK_ID`        |
+| `/workflow cancel WORKFLOW_ID` | Cancel a workflow and its remaining assignments                     | `/workflow cancel WORKFLOW_ID` |
+| `/quit` or `/exit`             | Stop active work and exit the CLI                                   | `/quit`                        |
 
 Stopping preserves edits. Canceling a workflow task cancels dependent work. Use `/queue cancel TASK_ID` for waiting tasks; `/stop NAME` targets active work. After `/stop all`, use `/queue resume` to restart dispatch.
 
@@ -264,6 +278,7 @@ Choose IDs and effort levels from `/model list`; cached entries may be unavailab
 | `/help`, `?`, or F1  | Open help                                                            | `/help`                                                |
 | `/help QUERY`        | Search command help                                                  | `/help questions`                                      |
 | Enter                | Send complete input                                                  | Paste one `/task ...` prompt, then Enter               |
+| Shift+Enter          | Insert a new line without sending                                    | Write a multiline prompt before pressing Enter         |
 | Tab / Shift+Tab      | Cycle teammates and Crew Chat; complete command/mention input        | Type `/chat dev`, then Tab                             |
 | F2 / Shift+F2        | Cycle views forward/backward                                         | Chat → Crew Chat → Activity                            |
 | Escape               | Close panel, return from group/activity to Chat, or clear Chat input | Press Esc                                              |

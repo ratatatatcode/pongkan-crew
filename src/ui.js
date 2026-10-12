@@ -15,6 +15,7 @@ const CLI_TIPS = [
   '/personality lists chat styles; tone never changes a teammate’s role.',
   'Use /crew-task to turn a Crew Chat discussion into coordinated work.',
   'F2 switches between Chat, Crew Chat, and Activity.',
+  'Shift+Enter inserts a new line; Enter sends the complete prompt.',
   'Up/Down browses prompt history and restores your current draft.',
   '/queue list shows queued work and its status.',
   'Shift+Right fills an answer for a waiting question.',
@@ -142,6 +143,11 @@ export function screen(
     content = discussion
       ? [
           row(`CREW CHAT · ${discussionStatus}`, 'heading'),
+          ...(discussion.participants
+            ? wrap(`Participants: ${discussion.participants.map(nameLabel).join(', ')}`, readingWidth).map(text =>
+                row(text, 'muted'),
+              )
+            : []),
           row(''),
           ...discussion.messages
             .map((message, index) => ({ message, order: message.discussionMessageIndex ?? index }))
@@ -186,6 +192,15 @@ export function screen(
       if (discussion.status === 'interrupted')
         content.push(row('App restarted. Start again with /discuss TOPIC.', 'muted'));
     }
+  }
+  if (view === 'group' && (crew.state.activeGroupConversation || crew.discussions?.current)) {
+    content.push(
+      ...workflowFeed(crew, readingWidth, crew.state.activeGroupConversation, {
+        conversation: true,
+        discussionId: crew.discussions?.current?.id,
+        priorDiscussionIds: crew.discussions?.current?.priorDiscussionIds,
+      }),
+    );
   }
   if (view === 'activity') {
     const events = crew.activityEvents?.length ? crew.activityEvents : crew.activity.map(text => ({ text }));
