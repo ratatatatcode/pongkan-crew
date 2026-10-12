@@ -8,6 +8,7 @@ import { execute } from '../src/commands.js';
 import { screen } from '../src/ui.js';
 import { sourceChanged } from '../src/source-version.js';
 import { validateState } from '../src/state.js';
+import { installDirectSubmit } from './helpers/direct-submit.js';
 
 function setup(t, reply, { direct = false } = {}) {
   const folder = mkdtempSync(join(tmpdir(), 'pongkan-semantic-'));
@@ -20,7 +21,8 @@ function setup(t, reply, { direct = false } = {}) {
     },
   });
   crew.queue.pause();
-  if (!direct) crew.inputs.submit = crew.inputs.submitInterpreted.bind(crew.inputs);
+  if (direct) installDirectSubmit(crew);
+  else crew.inputs.submit = crew.inputs.submitInterpreted.bind(crew.inputs);
   crew.queue.drain = () => {};
   t.after(async () => {
     await crew.close();
@@ -105,6 +107,7 @@ test('a direct Developer turn reaches the worker sandbox in exactly one model ca
       event({ type: 'item.completed', item: { type: 'agent_message', text: 'Changed the label.' } });
     },
   });
+  installDirectSubmit(crew);
   t.after(async () => {
     await crew.close();
     rmSync(folder, { recursive: true, force: true });

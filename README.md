@@ -55,13 +55,13 @@ The default crew is **Chief, Researcher, Developer, and Reviewer**. Type normall
 | Individual Chat       | The selected teammate                                   |
 | `@NAME MESSAGE`       | The named teammate, using shared Crew Chat context      |
 
-Use your own words; no specific verb or keyword is required. The recipient AI interprets your request and decides how to handle it within their permissions. Ordinary messages do not automatically route to other crew members or start a team workflow. Use `/discuss`, `/task`, or `/crew-task` when you want explicit team orchestration.
+Use your own words; no specific verb or keyword is required. Crew interprets each message and routes it to a reply, assignment, discussion, or workflow within the crew's permissions. In Crew Chat, a natural follow-up such as `Proceed with the agreed plan from our discussion.` can start a coordinated workflow using the recent discussion as context. Use `/discuss`, `/task`, or `/crew-task` when you prefer an explicit command.
 
-Ordinary sends have no intent classifier, action-keyword routing, or automatic workflow. The recipient handles the message with their configured permissions. Developer can implement an edit or perform authorized Git work directly; Reviewer stays read-only. Questions and actions use the same delivery path.
+Natural-language routing does not grant access: each action still follows the selected recipient's permissions. Developer can implement an edit or perform authorized Git work directly; Reviewer stays read-only. Questions and actions use the same delivery path.
 
 Every personality uses this same delivery and execution behavior. Styles change wording and tone, never permissions or action selection. Short acknowledgements such as “Okay” keep the recipient's configured access and conversation context.
 
-Messages are saved and queued for one recipient. Follow-ups retain the conversation context. Use `/discuss` for team discussion and `/task` or `/crew-task` for an explicit coordinated workflow with independent review. Direct sends do not automatically add review or summary turns.
+Messages are saved and queued for the routed recipient or workflow. Follow-ups retain the conversation context. Use `/discuss` for team discussion and `/task` or `/crew-task` for an explicit coordinated workflow with independent review. You can also approve a plan in your own words; Crew uses recent Crew Chat context to interpret the request.
 
 ```text
 How should we improve the navigation?
@@ -83,9 +83,9 @@ To ask a question of only one teammate, start the message with `@NAME`:
 
 `@developer Replace Show and Hide with Show summary and Hide summary.` queues one Developer turn with write access. `@developer Commit and push.` uses the same direct path. Enter and Shift+Left use the same delivery. A mention does not change the recipient's configured access.
 
-Ordinary sends request one recipient's reply. `/discuss` explicitly schedules two rounds and a lead summary.
+Ordinary messages can request one recipient's reply or a workflow, depending on their meaning. `/discuss` explicitly schedules two rounds and a lead summary.
 
-Crew Chat and individual chats use separate sessions. A teammate's individual chat does not automatically receive what they just discussed in Crew Chat. Continue with `@NAME` in Crew Chat when you want them to use that discussion, or include the relevant details in their individual chat. Address Developer to implement a discussed change, or use `/crew-task` explicitly.
+Crew Chat and individual chats use separate sessions. A teammate's individual chat does not automatically receive what they just discussed in Crew Chat. Continue with `@NAME` in Crew Chat when you want them to use that discussion, or include the relevant details in their individual chat. In Crew Chat, approve the plan naturally—for example, `Proceed with the agreed plan from our discussion.`—or use `/crew-task` for an explicit command.
 
 ### Optional `/task` and `/crew-task` overrides
 

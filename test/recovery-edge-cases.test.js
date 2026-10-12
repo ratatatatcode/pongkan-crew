@@ -7,10 +7,12 @@ import { Crew } from '../src/crew.js';
 import { execute, queuePrompt, HELP } from '../src/commands.js';
 import { completions } from '../src/controls.js';
 import { screen } from '../src/ui.js';
+import { installDirectSubmit } from './helpers/direct-submit.js';
 
 function setup(t) {
   const folder = mkdtempSync(join(tmpdir(), 'pongkan-recovery-edge-'));
   const crew = new Crew(folder);
+  installDirectSubmit(crew);
   crew.queue.pause();
   crew.queue.drain = () => {};
   t.after(async () => {

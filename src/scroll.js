@@ -9,18 +9,50 @@ export function scrollView(app, amount) {
 }
 
 // Strip SGR mouse reports before readline can interpret them as prompt text.
-export function terminalInput(write, scroll, click = () => {}) {
+export function terminalInput(write, scroll, click = () => {}, paste = write) {
   let pending = '';
   let flush;
+  let pasting = false;
   return chunk => {
     clearTimeout(flush);
     pending += chunk;
     while (pending) {
+      if (pasting) {
+        const end = pending.indexOf('\x1b[201~');
+        if (end < 0) {
+          const keep = pending.endsWith('\x1b')
+            ? 1
+            : pending.endsWith('\x1b[')
+              ? 2
+              : pending.endsWith('\x1b[2')
+                ? 3
+                : pending.endsWith('\x1b[20')
+                  ? 4
+                  : pending.endsWith('\x1b[201')
+                    ? 5
+                    : 0;
+          if (pending.length > keep) paste(pending.slice(0, pending.length - keep));
+          pending = keep ? pending.slice(-keep) : '';
+          return;
+        }
+        if (end) paste(pending.slice(0, end));
+        pending = pending.slice(end + 6);
+        pasting = false;
+        continue;
+      }
+      const startPaste = pending.indexOf('\x1b[200~');
+      if (startPaste >= 0) {
+        if (startPaste) write(pending.slice(0, startPaste));
+        pending = pending.slice(startPaste + 6);
+        pasting = true;
+        continue;
+      }
       const start = pending.search(/\x1b\[(?:<|27;)/);
       if (start < 0) {
         const escape = pending.lastIndexOf('\x1b');
         const tail = escape < 0 ? '' : pending.slice(escape);
-        const keep = tail && ['\x1b[<', '\x1b[27;2;13~'].some(prefix => prefix.startsWith(tail)) ? tail.length : 0;
+        const keep =
+          tail && ['\x1b[<', '\x1b[27;2;13~', '\x1b[200~'].some(prefix => prefix.startsWith(tail)) ? tail.length : 0;
         if (pending.length > keep) write(pending.slice(0, pending.length - keep));
         pending = keep ? pending.slice(-keep) : '';
         if (pending)
