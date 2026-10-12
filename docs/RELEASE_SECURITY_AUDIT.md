@@ -57,15 +57,16 @@ Follow-up verification: all 130 offline tests passed, including six coordinator 
 
 ## Follow-up: CI/CD implementation and action hardening
 
-Automated CI/CD workflows and Dependabot configuration were added under `.github/`:
+Automated CI/CD workflows and Dependabot configuration were added under `.github/`. These changes follow the original audit snapshot above, which predates workflows and development dependencies:
 
-- `.github/workflows/ci.yml`: Executes multi-platform matrix testing (`ubuntu-latest`, `windows-latest` on Node.js 22 and 24), runs JavaScript syntax validation via `node scripts/check-syntax.js`, verifies `npm pack --dry-run`, and tests sensitive path ignore rules.
-- `.github/workflows/release.yml`: Automates release asset generation and GitHub release drafting on version tags (`v*`) using GitHub's built-in CLI (`gh`), avoiding unvetted third-party publishing actions.
-- `.github/dependabot.yml`: Tracks and updates pinned GitHub Actions.
+- `.github/workflows/ci.yml`: Executes tests and both offline previews on `ubuntu-latest` and `windows-latest` with Node.js 22 and 24. A separate Ubuntu job with Node.js 22 installs development dependencies with `npm ci`, runs linting, formatting and JavaScript syntax validation, verifies `npm pack --dry-run`, and checks sensitive path ignore rules.
+- `.github/workflows/release.yml`: Runs tests, builds a source archive and SHA-256 checksum, and publishes a GitHub release on version tags (`v*`) using GitHub's built-in CLI (`gh`). It does not create a draft or wait for the CI workflow to finish.
+- `.github/dependabot.yml`: Tracks pinned GitHub Actions and npm development dependencies weekly. The app still has no npm runtime dependencies; `package-lock.json` locks the linting and formatting tools.
 
 Security posture adheres to the guidelines in [SECURITY.md](../SECURITY.md):
 
 - CI token permissions are restricted to `contents: read`.
-- External actions are pinned to reviewed 40-character commit hashes (`actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683` and `actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a`).
+- Both workflows pin external actions to full commit hashes: `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1` (v7.0.1) and `actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1` (v7.1.0). Pinning alone does not establish a security review of those revisions.
+- The release workflow uses `contents: write` to publish release assets; the CI workflow retains read-only repository access.
 - Offline CI runs without personal credentials or Codex secrets.
 - Pull-request concurrency cancellation prevents stale redundant runs.

@@ -11,11 +11,13 @@ Keep changes focused, explain their effect, and report your checks.
 
 ## Local development
 
-Use Node.js 22 or newer. No npm runtime dependencies are needed.
+Use Node.js 22 or newer. No npm runtime dependencies are needed; `npm ci` installs the locked development tools for linting and formatting.
 
 ```powershell
+npm ci
 node --test
 node .\scripts\preview-display.js
+node .\scripts\preview-display.js --activity
 node .\scripts\check-syntax.js
 npm run lint
 npm run format:check
@@ -31,7 +33,7 @@ no agent tasks. Physical touchpad gestures still need a manual check.
 ## Pull requests
 
 - Explain the problem and resulting behavior.
-- Report check results and anything not checked (automated CI verifies tests, syntax, and repository hygiene across Linux and Windows on Node 22 and 24).
+- Report check results and anything not checked. Automated CI runs tests and both offline previews across Linux and Windows on Node 22 and 24; linting, formatting, syntax, and repository hygiene run separately on Ubuntu with Node 22.
 - Update usage docs when behavior changes.
 - Exclude generated output, local state, installed dependencies, and secrets.
 

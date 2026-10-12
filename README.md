@@ -1,6 +1,6 @@
 # Pongkan Crew
 
-[![CI](https://github.com/juhenes/pongkan-crew/actions/workflows/ci.yml/badge.svg)](https://github.com/juhenes/pongkan-crew/actions/workflows/ci.yml)
+[![CI](https://github.com/ratatatatcode/pongkan-crew/actions/workflows/ci.yml/badge.svg)](https://github.com/ratatatatcode/pongkan-crew/actions/workflows/ci.yml)
 
 A terminal workspace for named Codex teammates. Chat, plan tasks, review changes, and follow your crew's work in one place.
 
@@ -112,7 +112,7 @@ If Node or Codex is missing, install it and reopen the terminal. Run `codex logi
 
 [Command reference](docs/COMMANDS.md) / [Upgrading and recovery](docs/UPGRADING.md) / [Contributing](CONTRIBUTING.md) / [Security](SECURITY.md)
 
-Run `node --test` for tests, `node .\scripts\preview-display.js` for an offline preview, `node .\scripts\check-syntax.js` for syntax validation, and `npm run lint` / `npm run format:check` for linting and code style. Continuous integration runs offline tests, syntax checks, linting, and formatting checks across Linux and Windows runners on Node 22 and 24.
+Run `npm ci` to install the development tools before running `npm run lint` or `npm run format:check`. Tests (`node --test`), offline previews (`node .\scripts\preview-display.js` and `node .\scripts\preview-display.js --activity`), and syntax validation (`node .\scripts\check-syntax.js`) need no installed dependencies. Continuous integration runs tests and both previews on Linux and Windows with Node 22 and 24. A separate Ubuntu job on Node 22 checks linting, formatting, syntax, package contents, and sensitive-path ignore rules.
 
 ## License
 
