@@ -186,6 +186,13 @@ async function main() {
       scrollView(app, amount);
       render();
     },
+    undefined,
+    text => {
+      const chars = Array.from(text.replace(/\r\n?/g, '\n'));
+      input.splice(cursor, 0, ...chars);
+      cursor += chars.length;
+      render();
+    },
   );
   const useStdin = () => {
     usingStdin = true;

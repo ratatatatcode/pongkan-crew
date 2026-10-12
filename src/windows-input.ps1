@@ -16,6 +16,16 @@ public static class PongkanInputReader {
   static extern bool GetConsoleMode(IntPtr handle, out uint mode);
   [DllImport("kernel32.dll")]
   static extern bool SetConsoleMode(IntPtr handle, uint mode);
+  [DllImport("user32.dll", SetLastError=true)]
+  static extern bool OpenClipboard(IntPtr owner);
+  [DllImport("user32.dll", SetLastError=true)]
+  static extern IntPtr GetClipboardData(uint format);
+  [DllImport("user32.dll", SetLastError=true)]
+  static extern bool CloseClipboard();
+  [DllImport("kernel32.dll", SetLastError=true)]
+  static extern IntPtr GlobalLock(IntPtr memory);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  static extern bool GlobalUnlock(IntPtr memory);
   [StructLayout(LayoutKind.Explicit, Size=20, CharSet=CharSet.Unicode)]
   struct InputRecord {
     [FieldOffset(0)] public ushort type;
@@ -31,6 +41,17 @@ public static class PongkanInputReader {
   }
   [DllImport("kernel32.dll", CharSet=CharSet.Unicode)]
   static extern bool WriteConsoleInputW(IntPtr handle, InputRecord[] records, uint count, out uint written);
+  static string ClipboardText() {
+    if (!OpenClipboard(IntPtr.Zero)) return null;
+    try {
+      IntPtr memory = GetClipboardData(13); // CF_UNICODETEXT
+      if (memory == IntPtr.Zero) return null;
+      IntPtr text = GlobalLock(memory);
+      if (text == IntPtr.Zero) return null;
+      try { return Marshal.PtrToStringUni(text); }
+      finally { GlobalUnlock(memory); }
+    } finally { CloseClipboard(); }
+  }
   [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
   static extern bool ReadConsoleInputW(IntPtr handle, [Out] InputRecord[] records, uint count, out uint read);
   public static void Run(bool selfTest) {
@@ -92,6 +113,14 @@ public static class PongkanInputReader {
             continue;
           }
           if (record.type != 1 || record.down == 0) continue;
+          // The native console path receives Ctrl+V as a key chord instead of
+          // the terminal's normal paste text. Read Unicode text and mark it so
+          // the prompt can insert newlines without submitting the message.
+          if (record.key == 86 && (record.controls & 12) != 0) {
+            string pasted = ClipboardText();
+            if (!String.IsNullOrEmpty(pasted)) text.Append("\x1b[200~" + pasted + "\x1b[201~");
+            continue;
+          }
           string keyText = record.character == '\0' ? "" : record.character.ToString();
           switch (record.key) {
             case 8: keyText = "\x7f"; break;

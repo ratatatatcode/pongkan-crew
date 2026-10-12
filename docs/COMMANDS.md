@@ -24,13 +24,13 @@ Type normally **inside Pongkan Crew** and press Enter. Slash commands are option
 | Individual Chat       | The selected teammate                                   |
 | `@NAME MESSAGE`       | The named teammate, using shared Crew Chat context      |
 
-Type naturally and press Enter; no specific verb or keyword is required. The recipient AI decides how to handle your request within their permissions. Ordinary messages do not automatically route to other crew members or start a team workflow. Use the explicit commands below for team orchestration.
+Type naturally and press Enter; no specific verb or keyword is required. Crew interprets the request and routes it to a reply, assignment, discussion, or workflow within the crew's permissions. In Crew Chat, a natural approval such as `Proceed with the agreed plan from our discussion.` can start a coordinated workflow from the recent discussion. Use the explicit commands below when you prefer a command.
 
-Crew Chat sends ordinary messages directly to Chief. `@NAME MESSAGE` sends directly to that teammate; Individual Chat sends to the selected teammate. Activity uses Crew Chat. Each send queues one recipient turn, with no intent classifier, action keywords, automatic planning, review, or summary.
+Crew Chat and Activity route through the lead. `@NAME MESSAGE` addresses that teammate; Individual Chat addresses the selected teammate. Natural-language routing may start a workflow when requested, while each action still follows the recipient's configured permissions.
 
 Developer retains write access for questions and authorized actions alike. Reviewer remains read-only. Follow-ups use the conversation context and queue after active shared turns. `@developer Commit and push.` uses the same path as any other request; the worker checks actual Git access when executing.
 
-Use `/discuss TOPIC` for team discussion, `/task GOAL` or `/crew-task GOAL` for coordinated execution, `/answer TASK_ID TEXT` for a saved waiting assignment, and `/stop` to cancel. Plain `continue` is conversation delivered to its recipient, not an app-level resume command.
+Use `/discuss TOPIC` for team discussion, `/task GOAL` or `/crew-task GOAL` for explicit coordinated execution, `/answer TASK_ID TEXT` for a saved waiting assignment, and `/stop` to cancel. You can also approve the plan in your own words in Crew Chat. Plain `continue` is conversation delivered to its recipient, not an app-level resume command.
 
 ### Optional execution overrides
 
@@ -58,7 +58,7 @@ Corrections are queued for the next task boundary. Workflow completion records t
 
 Sharing requires a completed reply and another existing teammate. A running, queued, or unanswered private turn must finish first. Only the latest exchange is shared, including its full text; older exchanges and other private chats are not imported. An ordinary mention or a teammate suggesting collaboration does not trigger sharing. `/handoff NAME [TASK]` continues to send a direct assignment rather than open a shared conversation.
 
-Use `/crew-task [GOAL]` after the discussion finishes to execute with the shared findings. Plain approvals are interpreted by the recipient AI without scheduling a workflow. `/crew-task --isolated [GOAL]` also carries that context into a separate Git worktree. Execution may involve additional crew specialists beyond the discussion participants.
+Use `/crew-task [GOAL]` after the discussion finishes to explicitly execute with the shared findings. You can also approve the plan naturally in Crew Chat; the router uses recent discussion context to decide whether to start the workflow. `/crew-task --isolated [GOAL]` also carries that context into a separate Git worktree. Execution may involve additional crew specialists beyond the discussion participants.
 
 | Command                          | Purpose                                                                       | Sample usage                                                             |
 | -------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ |

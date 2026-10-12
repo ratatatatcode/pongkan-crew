@@ -182,8 +182,12 @@ export function screen(
         rows: [
           row(''),
           row('You', 'user'),
+          row(''),
           ...renderMarkdown(input.text, readingWidth, { folder: crew.folder }),
+          row(''),
           ...wrap(inputStatus(crew, input), readingWidth).map(text => row(text, 'muted')),
+          row(''),
+          row(''),
         ],
       });
     content =

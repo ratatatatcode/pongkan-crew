@@ -7,6 +7,7 @@ import { Crew } from '../src/crew.js';
 import { displayMessages } from '../src/conversations.js';
 import { PERSONALITIES, personalityInstruction } from '../src/personality.js';
 import { execute } from '../src/commands.js';
+import { installDirectSubmit } from './helpers/direct-submit.js';
 
 test('every personality guides plain language while preserving the assigned role', () => {
   for (const style of [...Object.keys(PERSONALITIES), undefined, 'unknown']) {
@@ -56,6 +57,7 @@ test('plain language reaches direct and Crew Chat turns without forcing discussi
 function setup(t, runner) {
   const folder = mkdtempSync(join(tmpdir(), 'pongkan-friendly-'));
   const crew = new Crew(folder, { runner });
+  installDirectSubmit(crew);
   t.after(async () => {
     await crew.close();
     rmSync(folder, { recursive: true, force: true });
