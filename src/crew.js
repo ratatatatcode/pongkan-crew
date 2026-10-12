@@ -31,15 +31,7 @@ import { codexExecutionPolicy } from './codex-permissions.js';
 
 export function buildArgs(folder, member, schemaPath = null, permissionMode = member.codexPermissions || 'approve') {
   const { sandbox, approval, reviewer } = codexExecutionPolicy(member, permissionMode);
-  const args = [
-    'exec',
-    '-C',
-    folder,
-    '-s',
-    sandbox,
-    '-c',
-    `approval_policy=${JSON.stringify(approval)}`,
-  ];
+  const args = ['exec', '-C', folder, '-s', sandbox, '-c', `approval_policy=${JSON.stringify(approval)}`];
   if (reviewer) args.push('-c', `approvals_reviewer=${JSON.stringify(reviewer)}`);
   args.push('--skip-git-repo-check', '--json');
   if (schemaPath) args.push('--output-schema', schemaPath);

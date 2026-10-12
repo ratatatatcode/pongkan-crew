@@ -280,7 +280,10 @@ export function execute(app, line, { submission = 'enter' } = {}) {
       if (parts.length > 1) throw new Error('Use /permissions [NAME] or /permissions MODE [NAME].');
       const member = crew.member(parts[0] || app.selected);
       const currentMode = member.codexPermissions || 'approve';
-      const currentIndex = Math.max(0, CODEX_PERMISSION_MODES.findIndex(option => option.id === currentMode));
+      const currentIndex = Math.max(
+        0,
+        CODEX_PERMISSION_MODES.findIndex(option => option.id === currentMode),
+      );
       panel(`CODEX PERMISSIONS · ${member.name}`, []);
       const picker = app.panel;
       picker.kind = 'codex-permissions';

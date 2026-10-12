@@ -58,7 +58,8 @@ export function validateState(state) {
     throw new Error('Invalid crew state. Back up .pongkan-crew/state.json before repairing it.');
   };
   if (!state || state.version !== 1 || !Array.isArray(state.members)) invalid();
-  for (const member of state.members) if (member && member.codexPermissions === undefined) member.codexPermissions = 'approve';
+  for (const member of state.members)
+    if (member && member.codexPermissions === undefined) member.codexPermissions = 'approve';
   if (!membersValid(state.members)) invalid();
   if (state.questionsEnabled === undefined) state.questionsEnabled = true;
   if (typeof state.questionsEnabled !== 'boolean') invalid();

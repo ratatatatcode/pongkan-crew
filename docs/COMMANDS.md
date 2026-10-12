@@ -211,8 +211,8 @@ Views keep work running. Diffs are bounded and read-only; snapshots work without
 | `/crew role NAME --role ROLE` | Apply catalog instructions and default access                     | `/crew role designer --role ui-ux-designer`            |
 | `/crew access NAME read`      | Set future tasks to read-only access                              | `/crew access designer read`                           |
 | `/crew access NAME write`     | Allow future implementation tasks to write in the project         | `/crew access designer write`                          |
-| `/permissions [NAME]`         | Choose a Codex permission mode for a teammate                      | `/permissions developer`                               |
-| `/permissions MODE [NAME]`    | Set `ask`, `approve`, `full`, or `read-only` for future turns      | `/permissions approve developer`                       |
+| `/permissions [NAME]`         | Choose a Codex permission mode for a teammate                     | `/permissions developer`                               |
+| `/permissions MODE [NAME]`    | Set `ask`, `approve`, `full`, or `read-only` for future turns     | `/permissions approve developer`                       |
 | `/crew rename NAME NEWNAME`   | Rename a teammate; preserve lead/reviewer routing across restarts | `/crew rename chief boss`                              |
 | `/crew remove NAME`           | Archive and remove a non-coordinator; reject extra arguments      | `/crew remove artist`                                  |
 
