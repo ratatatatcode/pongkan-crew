@@ -4,6 +4,8 @@
 
 ## State location and safe upgrades
 
+Older active and archived teammate records without `codexPermissions` receive the legacy default `approve` on load. Explicit permission modes and role write/read settings are preserved. This includes history created by fresh-chat and isolation operations; those archives do not need to be deleted to reopen a project. Invalid explicit modes still fail validation.
+
 Each target project stores its crew in `<project>/.pongkan-crew/state.json`. This directory contains private conversations, task results, archives and session IDs. Keep it ignored in the target project's Git repository. Updating Pongkan Crew's source does not require deleting this directory or reinstalling dependencies.
 
 Close Pongkan Crew before replacing its source or backing up state. Keep a private backup of the target project's `.pongkan-crew` directory, then reopen the app for the same target folder. The source repository and target folder may be different. From the Pongkan Crew repository, for example:
@@ -64,3 +66,11 @@ After a failure or restart, inspect `/queue list` and `/workflow show ID`. `/wor
 Older group workflow messages are retained but isolated from personal transcripts on load. Personal sessions containing those old group turns are reset so later private turns do not resume the mixed context. Existing private messages remain available. New group workflows use separate execution sessions and show replies in Crew Chat, with future assignments in Activity.
 
 Changing a teammate's model affects future turns and preserves previous errors in saved history. It does not automatically resume a failed workflow. After changing the affected teammate's model, use `/workflow resume ID` for the affected workflow. If the same capacity error occurs on the new attempt, it remains a service/model availability blocker; resuming does not guarantee it has cleared.
+
+## Bounded workflow recovery
+
+`/recovery [WORKFLOW_ID]` is an explicit request for fresh diagnosis. It renews the two-attempt budget and bypasses obsolete recovery branches while retaining completed original assignments and saved findings. Without an ID, selection stays within the current conversation. Active and completed workflows are rejected. Ordinary `/workflow resume ID` retains its existing budget and dependency behavior.
+
+See [Troubleshooting blocked workflows](WORKFLOW_TROUBLESHOOTING.md) for symptoms, recovery commands, and manual handoff examples.
+
+Existing workflow records remain compatible; an absent recovery-attempt count means zero attempts. New workflows can insert coordinator recovery decisions and prerequisite assignments after a `PONGKAN_BLOCKED` report, with two automatic attempts before stopping. An explicit /recovery request renews this budget. Review handoffs remain read-only; prerequisite edits require an existing implementation assignment and retain the selected teammate's permissions. Recovery metadata and the existing dependency chain are saved together. Restart still marks unfinished workflows interrupted and requires explicit `/workflow resume ID`; recovery never silently restores or rolls back source files. Completed steps and configured permissions remain intact.
