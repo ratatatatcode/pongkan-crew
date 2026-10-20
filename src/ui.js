@@ -5,8 +5,10 @@ import { displayMessages } from './conversations.js';
 import { roleRows, isRoleHeading } from './role-display.js';
 import { workflowFeed } from './workflow-feed.js';
 import { inputStatus } from './input-router.js';
+import { routingQuestions } from './answer-shortcut.js';
 export { clean } from './markdown.js';
 const wrap = wrapText;
+const capitalize = text => text.charAt(0).toUpperCase() + text.slice(1);
 const nameLabel = name => name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 const renderedMessages = new WeakMap();
 const CLI_TIPS = [
@@ -92,8 +94,15 @@ export function screen(
   const member = crew.chatMember ? crew.chatMember(selected) : crew.member(selected);
   const activeChat = crew.state.conversations?.find(c => c.id === crew.state.activeConversations?.[selected]);
   const waiting = crew.state.tasks?.filter(task => task.status === 'waiting') || [];
-  if (waiting.length) notice = `${waiting.length} question(s) waiting — Shift+Right to answer | /questions list`;
+  const questionCount = waiting.length + routingQuestions({ crew, selected, view }).length;
+  if (questionCount) notice = `${questionCount} question(s) waiting — Shift+Right: answer | Enter or Shift+Left: send`;
   const row = (text, tone = 'body') => ({ text, tone });
+  const clarificationRows = request => [
+    row(request.answeredAt ? 'Question · Answered' : 'Question · Needs clarification', 'heading'),
+    row(''),
+    ...renderMarkdown(request.question, readingWidth, { folder: crew.folder }),
+    ...(!request.answeredAt ? [row(''), row('Shift+Right: answer | Enter or Shift+Left: send', 'selected')] : []),
+  ];
   const conversation = (
     view === 'chat' && !panel ? displayMessages(member, crew.state.tasks, crew.state.workflows) : []
   ).flatMap(m => {
@@ -182,7 +191,9 @@ export function screen(
           row('You', 'user'),
           ...renderMarkdown(input.text, readingWidth, { folder: crew.folder }),
           row(''),
-          ...wrap(inputStatus(crew, input), readingWidth).map(text => row(text, 'muted')),
+          ...(input.question
+            ? clarificationRows(input)
+            : wrap(capitalize(inputStatus(crew, input)), readingWidth).map(text => row(text, 'muted'))),
           row(''),
           row(''),
         ],
@@ -263,13 +274,14 @@ export function screen(
             : crew.state.activeConversations[selected] || null) &&
         (view === 'group' || input.selected === selected),
     );
-    if (latest)
+    if (latest && !(view === 'group' && latest.question))
       content.push(
         row(''),
-        ...wrap(`Status · ${inputStatus(crew, latest)}`, readingWidth).map(text => row(text, 'muted')),
+        ...wrap(`Status · ${capitalize(inputStatus(crew, latest))}`, readingWidth).map(text => row(text, 'muted')),
       );
     if (latest && view === 'chat' && ['queued', 'routing', 'blocked', 'interrupted'].includes(latest.status))
       content.push(...renderMarkdown(latest.text, readingWidth, { folder: crew.folder }));
+    if (latest?.question && view === 'chat') content.push(row(''), ...clarificationRows(latest));
   }
   if (view === 'activity') {
     const events = crew.activityEvents?.length ? crew.activityEvents : crew.activity.map(text => ({ text }));
@@ -330,7 +342,8 @@ export function screen(
             row(text, !/DIFF/.test(panel.title) && isRoleHeading(text) ? 'heading' : 'body'),
           ),
         );
-    panel.offset = Math.min(Math.max(0, panel.offset || 0), Math.max(0, lines.length - height));
+    panel.maxOffset = Math.max(0, lines.length - height);
+    panel.offset = panel.followLatest ? panel.maxOffset : Math.min(Math.max(0, panel.offset || 0), panel.maxOffset);
     visible = lines.slice(panel.offset, panel.offset + height);
     panelPosition = ` (${panel.offset + 1}-${Math.min(panel.offset + height, lines.length)}/${lines.length})`;
   }

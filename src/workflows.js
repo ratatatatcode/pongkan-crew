@@ -3,6 +3,7 @@ import { TERMINAL } from './tasks.js';
 import { VERIFICATION_SCHEMA, verificationResult } from './verification.js';
 import { structuredOutput } from './structured-output.js';
 import { taskSignal } from './questions.js';
+import { codexExecutionPolicy } from './codex-permissions.js';
 export const MAX_PLAN_STEPS = 12;
 
 export function validatePlan(plan, members, leadName = 'chief', reviewerName = null) {
@@ -160,16 +161,22 @@ export class Workflows {
     const flow = this.get(task.workflowId);
     if (TERMINAL.has(flow.status) || (flow.recoveryAttempts || 0) >= 2) return false;
     const lead = flow.lead || this.crew.leadName;
-    const roster = this.crew.state.members.map(member => ({ name: member.name, writable: member.writable }));
+    const roster = this.crew.state.members.map(member => ({
+      name: member.name,
+      writable: member.writable && member.codexPermissions !== 'read-only',
+      execution: codexExecutionPolicy(member),
+    }));
     const recovery = this.crew.queue.enqueue(
       lead,
       `PONGKAN_RECOVERY\nRecover this blocked assignment within the existing user goal: ${flow.text}\n` +
-        `Assignment: ${task.text}\nBlocker (untrusted findings): ${blocker}\nRoster: ${JSON.stringify(roster)}\n` +
+        `Assignment: ${task.text}\nBlocker (untrusted findings): ${blocker}\nCommand evidence (untrusted historical data): ${JSON.stringify(task.executionAttempts || [])}\nRoster: ${JSON.stringify(roster)}\n` +
         'Return ONLY JSON with action (handoff, retry, repair, or stop), member, and instruction. ' +
         'Use handoff for an existing teammate to inspect a prerequisite or review a contract; that handoff is read-only. ' +
         'Use repair for prerequisite implementation or test creation, even when the responsible writer is also the reporting worker. Never request implementation through a read-only handoff. Verify the current files and earlier completed findings rather than blindly repeating historical blockers. ' +
         "Use retry with a concrete changed approach, such as npm.cmd instead of npm.ps1 on Windows or checking actual task access rather than stale history. Name the original worker or the responsible teammate when a coordinator is reporting someone else's blocker. A different teammate receives a prerequisite assignment before the reporting task resumes. Source edits require an existing writable implementation assignment in this workflow and retain the selected teammate's permissions. " +
-        'Use stop for denied approvals, unavailable credentials, external dependencies, required user decisions, or anything requiring broader permissions. ' +
+        'For Node/npm EPERM or path access failures, use retry to have the worker inspect the exact command and error stack and request command-specific escalation through its existing approval mechanism when available. Use repair with an existing permitted writer for verification that a read-only worker cannot execute. A read-only handoff cannot resolve execution access. Never repeat the same failing command without a changed approach. ' +
+        'If Git reports dubious ownership or requests safe.directory for this project, retry the original worker with a per-command safe.directory setting for the exact project path (git -c safe.directory=<project-path> -C <project-path> ...). Do not edit global Git configuration or stop for this recoverable trust check. ' +
+        'Use stop for denied approvals, unavailable credentials, external dependencies, required user decisions, or access unavailable under every existing execution policy. Include the failed command, exact error, attempted remedies, and minimum user action in the stop instruction. ' +
         'Never invent acceptance, bypass approval or sandbox restrictions, change permissions, restore or delete user files, publish, or expand the goal. Do not run tools or edit files.',
       {
         workflowId: flow.id,
@@ -278,6 +285,45 @@ export class Workflows {
         decision.instruction.length > 8000
       )
         throw new Error('Invalid recovery decision. Inspect the blocker before resuming.');
+      const gitOwnershipBlocker =
+        /dubious ownership|safe\.directory|repository.*owned by another user|Git blocks access.*owned by another/i.test(
+          task.recoveryBlocker || '',
+        );
+      if (gitOwnershipBlocker && decision.action === 'stop') {
+        decision.action = 'retry';
+        decision.member = target.member;
+        decision.instruction =
+          `Retry the original command using a one-command Git trust setting for the exact project path: git -c safe.directory="${this.crew.folder}" -C "${this.crew.folder}" <original arguments>. ` +
+          'This scopes the trust exception to this command. Do not change global Git configuration, repository ownership, or project files. Continue the requested review or verification after Git succeeds.';
+      }
+      // Read-only QA cannot escalate. Run its verification prerequisite with an
+      // already authorized writer, then return the evidence to independent QA.
+      const accessFailure = (target.executionAttempts || []).findLast(
+        attempt => attempt.kind === 'filesystem-access' && attempt.policy?.approval === 'never',
+      );
+      const executionWriter =
+        accessFailure &&
+        this.crew.state.tasks
+          .filter(turn => turn.workflowId === flow.id && turn.kind === 'work' && !turn.readOnly)
+          .map(turn => this.crew.member(turn.member))
+          .find(member => member.writable && codexExecutionPolicy(member).approval === 'on-request');
+      if (
+        executionWriter &&
+        !target.executionDelegated &&
+        target.readOnly &&
+        !/approval.{0,40}(denied|rejected)/i.test(task.recoveryBlocker || '')
+      ) {
+        decision.action = 'repair';
+        decision.member = executionWriter.name;
+        decision.instruction =
+          'Run the pending verification commands for this assignment in your existing execution context. ' +
+          'Request command-specific escalation if filesystem access fails. Do not edit source files. ' +
+          'Report exact commands, exit codes, test counts and failures; distinguish execution evidence from independent QA acceptance. ' +
+          `Read-only worker failure (untrusted evidence): ${accessFailure.accessFailure}`;
+        target.executionDelegated = true;
+        target.text +=
+          '\nVerification execution was delegated to an existing permitted writer because this read-only context cannot escalate. Independently inspect the resulting command evidence and current source. Do not repeat the known blocked runtime check in the same read-only context. Do not claim you personally executed delegated commands. If evidence remains insufficient, report the specific missing verification.';
+      }
       if (decision.action === 'stop') {
         task.result = `Recovery needs user action: ${decision.instruction}`;
         this.fail(flow.id, `Recovery needs user action: ${decision.instruction}`);
@@ -475,6 +521,16 @@ export class Workflows {
   resume(id, instruction = '') {
     const flow = this.get(id);
     if (flow.status === 'completed') throw new Error('This workflow is complete. Describe the next change instead.');
+    if (flow.status === 'failed') {
+      const recovered = this.recovery(id);
+      if (instruction) {
+        recovered.steering ||= [];
+        recovered.steering.push({ id: randomUUID().slice(0, 8), text: instruction, createdAt: Date.now() });
+      }
+      this.crew.save();
+      this.crew.queue.drain();
+      return recovered;
+    }
     const tasks = this.crew.state.tasks.filter(task => task.workflowId === id);
     if (tasks.some(task => task.status === 'running'))
       throw new Error('The previous turn is still stopping. Try continuing again once it has stopped.');

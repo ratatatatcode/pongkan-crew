@@ -30,3 +30,16 @@ test('shortcut without waiting questions preserves input and reports why', () =>
   assert.equal(answerShortcut(app, 'draft'), 'draft');
   assert.match(app.notice, /No questions/);
 });
+
+test('shortcut answers a routing clarification in the current Crew Chat and preserves the draft', () => {
+  const app = makeApp();
+  app.view = 'group';
+  app.crew.state.activeGroupConversation = 'current';
+  app.crew.state.inputs = [
+    { id: 'other', view: 'group', conversationId: 'other', status: 'blocked', question: 'Unrelated?' },
+    { id: 'route', view: 'group', conversationId: 'current', status: 'blocked', question: 'Which behavior?' },
+  ];
+  assert.equal(answerShortcut(app, 'Route automatically'), '/answer route Route automatically');
+  assert.match(JSON.stringify(app.panel), /Which behavior/);
+  assert.match(JSON.stringify(app.panel), /Shift\+Left/);
+});

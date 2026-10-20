@@ -322,8 +322,13 @@ test('workflow resume executes only unfinished turns after a real runner failure
         type: 'item.completed',
         item: {
           type: 'agent_message',
-          text:
-            task.kind === 'plan'
+          text: task.recoveryFor
+            ? JSON.stringify({
+                action: 'retry',
+                member: 'developer',
+                instruction: 'Retry the unfinished work after the temporary model capacity failure.',
+              })
+            : task.kind === 'plan'
               ? JSON.stringify({ steps: [{ member: 'developer', task: 'Build badges' }], reviewer: 'reviewer' })
               : 'Verified.',
         },

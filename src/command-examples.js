@@ -82,6 +82,7 @@ export const COMMAND_EXAMPLES = {
   '/help QUERY': '/help model',
   '/help or': '/help',
   '/close': '/close',
+  '/restart': '/restart',
   '/quit': '/quit',
 };
 export function commandExamples(line) {

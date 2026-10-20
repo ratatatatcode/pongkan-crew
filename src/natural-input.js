@@ -197,8 +197,8 @@ export function routeNaturalInput(app, text, { submission = 'enter', target = nu
         text,
         decision.action === 'status'
           ? crew.leadName
-          : decision.target || target || (decision.teamDiscussion ? null : crew.leadName),
-        { submission },
+          : target || (decision.teamDiscussion ? null : decision.target || crew.leadName),
+        { submission, rounds: 1 },
       );
       crew.queue.resumeScope(task => task.discussionId === discussion.id);
       show(queued ? 'Your message is queued for the current discussion.' : 'Read-only reply requested.');

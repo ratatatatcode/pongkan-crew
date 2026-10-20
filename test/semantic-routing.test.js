@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Crew } from '../src/crew.js';
-import { execute } from '../src/commands.js';
+import { execute, queuePrompt } from '../src/commands.js';
 import { screen } from '../src/ui.js';
 import { sourceChanged } from '../src/source-version.js';
 import { validateState } from '../src/state.js';
@@ -40,6 +40,163 @@ const decision = (action, more = {}) => ({
   requiresWrite: false,
   teamDiscussion: false,
   ...more,
+});
+
+test('routing clarification is displayed once with a heading and answer shortcut', async t => {
+  const app = setup(t, decision('clarify', { question: 'Which behavior do you prefer?' }));
+  await execute(app, 'Yes');
+  const output = screen(app.crew, app.selected, '', '', 120, 50, 0, null, { view: 'group' });
+  assert.equal(output.split('Which behavior do you prefer?').length - 1, 1);
+  assert.match(output, /Question/);
+  assert.match(output, /Shift\+Right/);
+  assert.doesNotMatch(output, /needs clarification:/);
+});
+
+test('ordinary continuation resumes the unfinished workflow instead of starting another chat reply', async t => {
+  const folder = mkdtempSync(join(tmpdir(), 'pongkan-semantic-resume-'));
+  const prompts = [];
+  let flow;
+  const crew = new Crew(folder, {
+    runner: async (_args, prompt, event) => {
+      prompts.push(prompt);
+      event({
+        type: 'item.completed',
+        item: {
+          type: 'agent_message',
+          text: JSON.stringify(decision('resume', { workflowId: flow.id })),
+        },
+      });
+    },
+  });
+  crew.queue.pause();
+  crew.queue.drain = () => {};
+  t.after(async () => {
+    await crew.close();
+    rmSync(folder, { recursive: true, force: true });
+  });
+
+  const discussion = crew.discussions.newConversation();
+  discussion.messages.push(
+    { role: 'user', speaker: 'you', text: 'Check the project and have Reviewer verify it.' },
+    { role: 'assistant', speaker: 'chief', text: 'Next teammate: Reviewer, to verify the changes.' },
+  );
+  flow = crew.workflows.start('Check the project and have Reviewer verify it.', {
+    sourceDiscussionId: discussion.id,
+    requiresWrite: true,
+  });
+  const plan = crew.state.tasks.find(task => task.workflowId === flow.id && task.kind === 'plan');
+  plan.status = 'completed';
+  const review = crew.queue.enqueue('reviewer', 'Verify the changes.', {
+    workflowId: flow.id,
+    kind: 'review',
+    readOnly: true,
+    hold: true,
+  });
+  review.status = 'interrupted';
+  flow.status = 'cancelled';
+  flow.error = 'Task stopped.';
+  crew.save();
+
+  const app = { crew, selected: 'chief', view: 'group' };
+  await execute(app, 'Continue where you left off.');
+
+  assert.equal(prompts.length, 1);
+  assert.match(prompts[0], /PONGKAN_ROUTE/);
+  assert.equal(crew.state.workflows.length, 1);
+  assert.equal(flow.status, 'working');
+  assert.equal(review.status, 'queued');
+  assert.equal(discussion.messages.length, 2);
+  assert.match(app.notice, /Continuing unfinished work/);
+});
+
+test('answer command preserves the exact routing question and original request for interpretation', async t => {
+  let calls = 0;
+  const app = setup(t, prompt => {
+    calls++;
+    if (calls === 1) return decision('clarify', { question: 'Direct delivery or automatic routing?' });
+    assert.match(prompt, /Direct delivery or automatic routing/);
+    assert.match(prompt, /Choose the message behavior/);
+    assert.match(prompt, /Automatic routing/);
+    return decision('discuss', { target: 'chief' });
+  });
+  await execute(app, 'Choose the message behavior');
+  const original = app.crew.state.inputs[0];
+  await queuePrompt(app, `/answer ${original.id} Automatic routing`);
+  assert.equal(calls, 2);
+  assert.ok(original.answeredAt);
+  assert.equal(app.crew.state.inputs[1].clarificationId, original.id);
+  assert.equal(app.crew.state.inputs[1].status, 'dispatched');
+  assert.equal(app.crew.state.inputs[1].submission, 'shift-left');
+  validateState(JSON.parse(readFileSync(app.crew.file, 'utf8')));
+});
+
+test('a collective conversation decision delivers one read-only reply per crew member', async t => {
+  const app = setup(t, decision('discuss', { teamDiscussion: true, target: 'chief' }));
+  await execute(app, 'Hey, everyone! Good evening.');
+  const tasks = app.crew.state.tasks;
+  assert.deepEqual(
+    tasks.map(task => task.member),
+    app.crew.state.members.map(member => member.name),
+  );
+  assert.ok(tasks.every(task => task.readOnly && !task.discussionSummary));
+  assert.equal(app.crew.state.workflows.length, 0);
+  assert.equal(app.crew.discussions.current.messages.length, 1);
+  assert.equal(app.crew.discussions.current.messages[0].text, 'Hey, everyone! Good evening.');
+  assert.equal(app.prompts.length, 1);
+});
+
+test('an explicit mention keeps its recipient even when a collective decision is returned', async t => {
+  const app = setup(t, decision('discuss', { teamDiscussion: true, target: 'developer' }));
+  await execute(app, '@developer Ask everyone how the work is going.');
+  assert.deepEqual(
+    app.crew.state.tasks.map(task => task.member),
+    ['developer'],
+  );
+});
+
+test('collective replies respect the participants of a shared private exchange', async t => {
+  const app = setup(t, decision('discuss', { teamDiscussion: true }));
+  const chat = app.crew.discussions.newConversation();
+  chat.participants = ['developer', 'reviewer'];
+  await execute(app, 'How are you both doing?');
+  assert.deepEqual(
+    app.crew.state.tasks.map(task => task.member),
+    ['developer', 'reviewer'],
+  );
+});
+
+test('semantic audience selection produces saved replies from every participant without changing private chats', async t => {
+  const folder = mkdtempSync(join(tmpdir(), 'pongkan-collective-'));
+  const crew = new Crew(folder, {
+    runner: async (args, prompt, event) => {
+      assert.ok(args.includes('read-only'));
+      const reply = prompt.startsWith('PONGKAN_ROUTE')
+        ? JSON.stringify(decision('discuss', { teamDiscussion: true }))
+        : 'Good evening from ' + prompt.match(/^You are ([^,]+)/)[1];
+      event({ type: 'item.completed', item: { type: 'agent_message', text: reply } });
+    },
+  });
+  t.after(async () => {
+    await crew.close();
+    rmSync(folder, { recursive: true, force: true });
+  });
+  // This compatibility test opts into interpretation; ordinary sends stay direct.
+  crew.inputs.submit = crew.inputs.submitInterpreted.bind(crew.inputs);
+  const app = { crew, view: 'group', selected: 'developer' };
+  for (const message of ['Hey, everyone! Good evening.', 'Can I get a quick wave from the whole room?']) {
+    await execute(app, message);
+    const discussion = crew.discussions.current;
+    await crew.queue.settled(discussion.taskIds.at(-1));
+    assert.equal(discussion.status, 'completed');
+    const index = discussion.messages.findLastIndex(entry => entry.role === 'user');
+    assert.deepEqual(
+      discussion.messages.slice(index + 1).map(entry => entry.speaker),
+      crew.state.members.map(member => member.name),
+    );
+  }
+  assert.ok(crew.state.members.every(member => member.messages.length === 0));
+  assert.equal(crew.state.workflows.length, 0);
+  validateState(JSON.parse(readFileSync(crew.file, 'utf8')));
 });
 
 test('direct addressed edits bypass classification, planning, and read-only discussion', async t => {
@@ -101,7 +258,7 @@ test('a direct Developer turn reaches the worker sandbox in exactly one model ca
   const crew = new Crew(folder, {
     runner: async (args, prompt, event) => {
       calls.push({ args, prompt });
-      assert.equal(args[args.indexOf('-s') + 1], 'workspace-write');
+      assert.ok(args.includes('--approve-for-me'));
       assert.doesNotMatch(prompt, /PONGKAN_ROUTE|Discuss only/);
       writeFileSync(join(folder, 'label.txt'), 'Show summary');
       event({ type: 'item.completed', item: { type: 'agent_message', text: 'Changed the label.' } });

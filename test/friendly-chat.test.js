@@ -31,7 +31,7 @@ test('every personality delivers arbitrary wording directly with the same writer
     await crew.queue.settled(task.id);
     assert.equal(task.status, 'completed');
     assert.equal(calls.length, Object.keys(PERSONALITIES).indexOf(style) + 1);
-    assert.ok(calls.at(-1).args.includes('workspace-write'));
+    assert.ok(calls.at(-1).args.includes('--approve-for-me'));
     assert.doesNotMatch(calls.at(-1).prompt, /PONGKAN_ROUTE|CASUAL CONVERSATION/);
     assert.match(calls.at(-1).prompt, /This changes only your wording and tone/);
   }
@@ -128,7 +128,7 @@ test('a short acknowledgement retains the recipient permissions without keyword 
   const task = crew.queue.enqueue('developer', 'Okay!');
   await new Promise(resolve => setTimeout(resolve, 30));
   assert.equal(task.status, 'completed');
-  assert.ok(argsSeen.includes('workspace-write'));
+  assert.ok(argsSeen.includes('--approve-for-me'));
   assert.doesNotMatch(promptSeen, /CASUAL CONVERSATION|No project work is requested/);
 });
 test('a greeting containing real work still permits task questions and writer access', async t => {
@@ -140,7 +140,7 @@ test('a greeting containing real work still permits task questions and writer ac
   const task = crew.queue.enqueue('developer', 'Hello, build a navigation bar');
   await new Promise(resolve => setTimeout(resolve, 30));
   assert.equal(task.status, 'waiting');
-  assert.ok(argsSeen.includes('workspace-write'));
+  assert.ok(argsSeen.includes('--approve-for-me'));
 });
 
 test('workflow clarification answers remain readable when prior teammate results are appended', () => {

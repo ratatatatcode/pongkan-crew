@@ -18,19 +18,17 @@ Type normally **inside Pongkan Crew** and press Enter. Slash commands are option
 
 ## Plain messages
 
-| Where you type        | Who receives your message                               |
-| --------------------- | ------------------------------------------------------- |
-| Crew Chat or Activity | Your crew's designated lead (Chief in the default crew) |
-| Individual Chat       | The selected teammate                                   |
-| `@NAME MESSAGE`       | The named teammate, using shared Crew Chat context      |
+| Where you type        | Who receives your message                          |
+| --------------------- | -------------------------------------------------- |
+| Crew Chat or Activity | The designated lead                                |
+| Individual Chat       | The selected teammate                              |
+| `@NAME MESSAGE`       | The named teammate, using shared Crew Chat context |
 
-Type naturally and press Enter; no specific verb or keyword is required. Crew interprets the request and routes it to a reply, assignment, discussion, or workflow within the crew's permissions. In Crew Chat, a natural approval such as `Proceed with what you've discussed.` can start a coordinated workflow from the recent discussion. Use the explicit commands below when you prefer a command.
-
-Crew Chat and Activity route through the lead. `@NAME MESSAGE` addresses that teammate; Individual Chat addresses the selected teammate. Natural-language routing may start a workflow when requested, while each action still follows the recipient's configured permissions.
+Plain messages go directly to the selected teammate in Individual Chat, or to the designated lead in Crew Chat and Activity. When the current conversation has unfinished workflow tasks, follow-ups are interpreted against those assignments and can resume or correct existing work. Routing uses saved conversation and task state, not phrase matching. Use @NAME to preserve an explicit recipient. Use /task or /crew-task to start a new coordinated workflow and /discuss for collective replies and a lead summary.
 
 Developer retains write access for questions and authorized actions alike. Reviewer remains read-only. Follow-ups use the conversation context and queue after active shared turns. `@developer Commit and push.` uses the same path as any other request; the worker checks actual Git access when executing.
 
-Use `/discuss TOPIC` for team discussion, `/task GOAL` or `/crew-task GOAL` for explicit coordinated execution, `/answer TASK_ID TEXT` for a saved waiting assignment, and `/stop` to cancel. You can also approve the plan in your own words in Crew Chat. Plain `continue` is conversation delivered to its recipient, not an app-level resume command.
+Use `/discuss TOPIC` for team discussion, `/task GOAL` or `/crew-task GOAL` for explicit coordinated execution, `/answer TASK_ID TEXT` for a saved waiting assignment, and `/stop` to cancel. With no unfinished workflow in context, plain messages stay with the recipient. With unfinished tasks, the router uses the message and saved context to decide whether to continue existing work or reply conversationally.
 
 ### Optional execution overrides
 
@@ -42,7 +40,7 @@ Use `/discuss TOPIC` for team discussion, `/task GOAL` or `/crew-task GOAL` for 
 
 Directed messages queue one turn for the named teammate with their configured access. Unknown names fail before dispatch. Enter and Shift+Left use the same direct delivery.
 
-Existing workflows remain explicit saved records. Ordinary sends do not modify their execution graph or automatically create another workflow.
+Existing workflows remain explicit saved records. Ordinary sends do not create another workflow when unfinished work is already associated with the current conversation; semantic routing can continue the existing graph while preserving completed tasks.
 
 Crew Chat keeps shared messages and results together. Messages sent during an active shared turn are saved immediately and queued after earlier turns.
 
@@ -58,7 +56,7 @@ Corrections are queued for the next task boundary. Workflow completion records t
 
 Sharing requires a completed reply and another existing teammate. A running, queued, or unanswered private turn must finish first. Only the latest exchange is shared, including its full text; older exchanges and other private chats are not imported. An ordinary mention or a teammate suggesting collaboration does not trigger sharing. `/handoff NAME [TASK]` continues to send a direct assignment rather than open a shared conversation.
 
-Use `/crew-task [GOAL]` after the discussion finishes to explicitly execute with the shared findings. You can also approve the plan naturally in Crew Chat; `Proceed with what you've discussed.` is one example, and the router uses recent discussion context to decide whether to start the workflow. `/crew-task --isolated [GOAL]` also carries that context into a separate Git worktree. Execution may involve additional crew specialists beyond the discussion participants.
+Use `/crew-task [GOAL]` after the discussion finishes to explicitly execute with the shared findings. Plain approvals go directly to the recipient and do not start workflows. `/crew-task --isolated [GOAL]` also carries that context into a separate Git worktree. Execution may involve additional crew specialists beyond the discussion participants.
 
 | Command                          | Purpose                                                                       | Sample usage                                                             |
 | -------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
@@ -77,7 +75,7 @@ Use `/crew-task [GOAL]` after the discussion finishes to explicitly execute with
 | `/group`                         | Open the latest shared Crew Chat                                              | `/group`                                                                 |
 | `@NAME MESSAGE`                  | Send directly with shared context and the teammate's configured access        | `@developer How will you preserve invalid stored data?`                  |
 
-Request implementation in plain Crew Chat to get ordered assignments and independent review, or use the explicit `/task` override. Direct tasks are independent. Discussions and mentions are read-only. Crew Chat shows actual teammate replies and current progress with speaker labels; future assignments stay in Activity. Task and workflow detail panels render Markdown, including links and code blocks. Raw task records remain available through `/queue show ID`.
+Use `/task` or `/crew-task` to request ordered assignments and independent review. Plain Crew Chat messages and mentions request one direct turn with the recipient's configured access. Direct tasks are independent; `/discuss` turns are read-only. Crew Chat shows actual teammate replies and current progress with speaker labels; future assignments stay in Activity. Task and workflow detail panels render Markdown, including links and code blocks. Raw task records remain available through `/queue show ID`.
 
 Workflows started from Crew Chat include execution conversations for each assignment: the lead briefs the worker, the worker implements, the reviewer gives feedback, and the worker addresses it before the final review and summary. Self-feedback is skipped when the worker is also the reviewer. Replies appear live in Crew Chat as assistant messages arrive; generated assignment arrows are not presented as conversation. Execution sessions and replies stay outside personal chats. Shared discussion and direct message prompts use bounded recent context, preserving the latest user request; full saved history remains available. Use `/context on` to additionally shorten optional handoff context. Explicit verified edit workflows require a writable step and an independent outcome report. A passing report without recorded reviewer inspection stays unverified. Workflow completion means turns finished; inspect the separate met, needs work, or unverified verdict. Use `/stop` in Crew Chat to cancel its discussion and associated workflows. `/stop all` and `/workflow cancel ID` remain explicit overrides. A standalone `/task` outside Crew Chat keeps the shorter workflow.
 
@@ -141,18 +139,21 @@ Enter this `/discuss` command in Crew Chat. It works with default and custom cre
 
 Question mode is saved per folder and affects future private assignments and workflow work turns. Use `/answer TASK_ID TEXT` for an assignment shown as waiting, or Shift+Right to fill in that command. Waiting blocks dependent work and that teammate's other tasks; independent teammates can continue. `/answer` queues the answer if global dispatch is paused; `/queue resume` releases it. Ordinary replies are delivered as new messages and do not automatically answer saved waiting tasks. Shared discussions and lead planning do not use this question protocol.
 
+Routing clarifications also support Shift+Right: it fills `/answer REQUEST_ID ` for a question in the current conversation and preserves your draft. Type your answer, then press Enter or Shift+Left to submit it. Press Shift+Right again to cycle waiting questions. The reply is interpreted with its original request and exact clarification question; an ambiguous answer may need a focused follow-up. The question appears once under a capitalized Question heading with the keyboard hints, and answered requests retain their history.
+
 Questions off does not bypass permissions. Teammates can use existing approvals or request automatically reviewed, command-specific escalation. Denied/unavailable actions remain blockers. An explicit blocker signal fails the task and cancels dependent work; prose alone does not.
 
 ## Stop and cancel
 
-| Command                        | Purpose                                                             | Sample usage                   |
-| ------------------------------ | ------------------------------------------------------------------- | ------------------------------ |
-| `/stop`                        | Stop selected work; in Crew Chat, stop its discussion and workflows | `/stop`                        |
-| `/stop NAME`                   | Stop a named teammate's active task                                 | `/stop developer`              |
-| `/stop all`                    | Pause dispatch and cancel all queued, waiting, and running work     | `/stop all`                    |
-| `/queue cancel TASK_ID`        | Cancel a queued, waiting, or running task                           | `/queue cancel TASK_ID`        |
-| `/workflow cancel WORKFLOW_ID` | Cancel a workflow and its remaining assignments                     | `/workflow cancel WORKFLOW_ID` |
-| `/quit` or `/exit`             | Stop active work and exit the CLI                                   | `/quit`                        |
+| Command                        | Purpose                                                              | Sample usage                   |
+| ------------------------------ | -------------------------------------------------------------------- | ------------------------------ |
+| `/stop`                        | Stop selected work; in Crew Chat, stop its discussion and workflows  | `/stop`                        |
+| `/stop NAME`                   | Stop a named teammate's active task                                  | `/stop developer`              |
+| `/stop all`                    | Pause dispatch and cancel all queued, waiting, and running work      | `/stop all`                    |
+| `/queue cancel TASK_ID`        | Cancel a queued, waiting, or running task                            | `/queue cancel TASK_ID`        |
+| `/workflow cancel WORKFLOW_ID` | Cancel a workflow and its remaining assignments                      | `/workflow cancel WORKFLOW_ID` |
+| `/restart`                     | Stop active work, release the folder lock, and reload Crew from disk | `/restart`                     |
+| `/quit` or `/exit`             | Stop active work and exit the CLI                                    | `/quit`                        |
 
 Stopping preserves edits. `/stop` cancels the current shared discussion and its workflows in Crew Chat or Activity; in private Chat it targets the selected teammate's active task. `/stop NAME` targets a named teammate, and `/stop all` pauses dispatch and cancels all unfinished work. Use `/workflow resume ID` to continue an unfinished workflow or `/queue retry ID` for a finished standalone assignment. Plain `stop` and `continue` are messages to the recipient AI. `/queue resume` releases all eligible queued assignments, including those left paused by scoped recovery.
 
@@ -162,18 +163,18 @@ Stopping preserves edits. `/stop` cancels the current shared discussion and its 
 
 Unlike `/workflow resume`, `/recovery` renews the two-attempt automatic recovery budget, retires unfinished obsolete recovery branches, and reconnects original assignments before diagnosis. Completed steps and findings are retained, and unrelated paused tasks stay paused. The coordinator can request a read-only review, retry with a concrete alternative, or assign prerequisite implementation to an existing writer within an already writable workflow. Waiting questions still need `/answer`. The command does not change permissions or guarantee that external failures can be repaired.
 
-| Command                         | Purpose                                                     | Sample usage                   |
-| ------------------------------- | ----------------------------------------------------------- | ------------------------------ |
-| `/queue` or `/queue list`       | List task IDs, statuses, and dispatch state                 | `/queue list`                  |
-| `/queue show TASK_ID`           | Read prompt, result, error, dependency, and timing          | `/queue show TASK_ID`          |
-| `/queue pause`                  | Stop new dispatch while active work continues               | `/queue pause`                 |
-| `/queue resume`                 | Resume dispatch of eligible queued tasks                    | `/queue resume`                |
-| `/queue move TASK_ID POSITION`  | Move a queued task to a one-based queue position            | `/queue move TASK_ID 1`        |
-| `/queue retry TASK_ID`          | Create a retry of a finished standalone task                | `/queue retry TASK_ID`         |
-| `/workflow` or `/workflow list` | List coordinated workflows                                  | `/workflow list`               |
-| `/workflow show WORKFLOW_ID`    | Inspect goal, assignments, statuses, summary, and error     | `/workflow show WORKFLOW_ID`   |
-| `/workflow resume WORKFLOW_ID`  | Continue unfinished steps, preserving completed assignments | `/workflow resume WORKFLOW_ID` |
-| `/workflow retry WORKFLOW_ID`   | Start a new attempt at a finished/interrupted workflow      | `/workflow retry WORKFLOW_ID`  |
+| Command                         | Purpose                                                             | Sample usage                   |
+| ------------------------------- | ------------------------------------------------------------------- | ------------------------------ |
+| `/queue` or `/queue list`       | List task IDs, statuses, and dispatch state from the newest entries | `/queue list`                  |
+| `/queue show TASK_ID`           | Read prompt, result, error, dependency, and timing                  | `/queue show TASK_ID`          |
+| `/queue pause`                  | Stop new dispatch while active work continues                       | `/queue pause`                 |
+| `/queue resume`                 | Resume dispatch of eligible queued tasks                            | `/queue resume`                |
+| `/queue move TASK_ID POSITION`  | Move a queued task to a one-based queue position                    | `/queue move TASK_ID 1`        |
+| `/queue retry TASK_ID`          | Create a retry of a finished standalone task                        | `/queue retry TASK_ID`         |
+| `/workflow` or `/workflow list` | List coordinated workflows                                          | `/workflow list`               |
+| `/workflow show WORKFLOW_ID`    | Inspect goal, assignments, statuses, summary, and error             | `/workflow show WORKFLOW_ID`   |
+| `/workflow resume WORKFLOW_ID`  | Continue unfinished steps, preserving completed assignments         | `/workflow resume WORKFLOW_ID` |
+| `/workflow retry WORKFLOW_ID`   | Start a new attempt at a finished/interrupted workflow              | `/workflow retry WORKFLOW_ID`  |
 
 Moving tasks respects dependencies and the single-writer rule. After failure or restart, inspect the task and workflow records. `/workflow resume ID` reuses the existing workflow, results, task IDs, and dependency chain; completed steps are not redispatched, and unrelated paused assignments remain paused. A partially completed failed assignment continues from its existing files and findings. Restart an interrupted discussion with `/discuss TOPIC` or a new direct message.
 
@@ -224,7 +225,7 @@ Views keep work running. Diffs are bounded and read-only; snapshots work without
 
 Finish/cancel active workflows and affected tasks before changing members. The reviewer stays read-only; coordination members and the last teammate cannot be removed. Writer access does not grant command approvals, and discussions remain read-only.
 
-Codex permission modes control the CLI sandbox and approval behavior, independently of teammate write access. **Ask for approval** uses workspace-write and requests approval for eligible access outside it; Crew's noninteractive runner cannot answer a live user prompt. **Approve for me** uses Codex's workspace-write sandbox and automatic review. **Full Access** removes the sandbox and runs without approval. **Read Only** blocks edits and escalation. A read-only role always overrides a mode that otherwise permits writing. These settings affect future turns.
+Codex permission modes control the CLI sandbox and approval behavior, independently of teammate write access. **Ask for approval** uses workspace-write and requests approval for eligible access outside it; Crew's noninteractive runner cannot answer a live user prompt. **Approve for me** uses Codex's native `--approve-for-me` option with workspace-write sandboxing and automatic review in fresh and resumed turns. Workers request scoped Node/npm EPERM retries through the execution tool without asking for permission in chat. **Full Access** removes the sandbox and runs without approval. **Read Only** blocks edits and escalation. A read-only role always overrides a mode that otherwise permits writing. These settings affect future turns.
 
 These protections apply to the default crew as well as applied presets. Renaming `chief` to `boss` keeps `/task` routed to Boss; renaming `reviewer` keeps that teammate designated as the read-only reviewer. Applying a different preset selects its coordinators. `/crew remove artist extra` is invalid and leaves teammates, archives and saved state unchanged. See [upgrading](UPGRADING.md) for older saved crews.
 

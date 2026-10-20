@@ -17,6 +17,7 @@ import { runWorker } from './scheduler.js';
 import { answerShortcut } from './answer-shortcut.js';
 import { TerminalRenderer, scheduleRender } from './terminal-renderer.js';
 import { sourceChanged } from './source-version.js';
+import { launchRestart } from './restart.js';
 
 const args = process.argv.slice(2);
 const help = `Pongkan Crew — folder-specific Codex teammates
@@ -155,6 +156,17 @@ async function main() {
       await crew.close();
     } finally {
       release();
+    }
+  };
+  app.restart = async () => {
+    if (closing) return;
+    await app.quit();
+    try {
+      await launchRestart(resolve(process.argv[1]), args);
+      process.exit(0);
+    } catch (error) {
+      process.stderr.write(`Could not restart Crew: ${error.message}\n`);
+      process.exitCode = 1;
     }
   };
   const setInput = text => {

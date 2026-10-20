@@ -67,6 +67,7 @@ const COMMANDS = [
   '/switch prev',
   '/folder',
   '/close',
+  '/restart',
   '/quit',
   '/exit',
   '/archives',
