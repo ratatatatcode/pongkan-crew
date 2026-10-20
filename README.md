@@ -75,6 +75,8 @@ Messages sent while another shared turn is active queue after it. Use `/stop` to
 
 Plain messages resume dispatch for the current conversation; unrelated paused assignments stay paused. Individual Chat continues to address the selected teammate. Messages entered in Activity use the current Crew Chat. Slash commands remain available as explicit overrides; `/workflow retry ID` deliberately restarts the entire workflow.
 
+Explicit workflows automatically evaluate `PONGKAN_BLOCKED` reports for recovery. The coordinator can request a read-only prerequisite review, retry the original assignment with a changed approach, or assign missing prerequisite work to the responsible teammate before retrying the reporting task. New writer tasks require an existing implementation assignment in the workflow. Recovery preserves completed steps and existing permissions, with at most two automatic attempts before stopping; an explicit /recovery request renews that budget. Unresolved blockers still stop the workflow. On Windows, workers are instructed to use `npm.cmd` if PowerShell blocks `npm.ps1`.
+
 To ask a question of only one teammate, start the message with `@NAME`:
 
 ```text
@@ -185,6 +187,10 @@ Use `/permissions [NAME]` to choose a teammate's mode, or `/permissions MODE [NA
 - **Read Only** blocks edits and access escalation.
 
 ## Troubleshooting
+
+For a blocked or interrupted workflow, use `/recovery` to diagnose and repair unfinished work in the current conversation, or `/recovery WORKFLOW_ID` to choose one explicitly. It preserves completed steps and permissions, keeps unrelated paused tasks paused, and requests a fresh bounded recovery attempt. It reports unresolved blockers when repair is unavailable.
+
+For startup, login, blocked workflows, permissions, saved state, worktrees, schedules, exports, and terminal issues, see the [Crew troubleshooting guide](docs/WORKFLOW_TROUBLESHOOTING.md).
 
 ```powershell
 node .\src\cli.js --doctor --folder "C:\Projects\My Project"

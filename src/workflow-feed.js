@@ -1,5 +1,6 @@
 import { wrapText, renderMarkdown } from './markdown.js';
 import { displayMessages } from './conversations.js';
+import { structuredOutput } from './structured-output.js';
 const label = name => name.charAt(0).toUpperCase() + name.slice(1);
 const renderedTasks = new WeakMap();
 
@@ -72,8 +73,17 @@ export function workflowFeed(
         task.status === 'running'
           ? (crew.chatMember?.(task.member, task.conversationId) || crew.member?.(task.member))?.progress
           : null;
-      const result =
+      let result =
         task.status === 'running' && progress?.taskId === task.id ? progress.response || task.result : task.result;
+      if (task.recoveryFor && result) {
+        try {
+          const decision = structuredOutput(result, ['action', 'member', 'instruction']);
+          result = `Recovery ${decision.action} · ${decision.member}\n${decision.instruction}`;
+        } catch {
+          if (task.status === 'running' || result.trimStart().startsWith('{'))
+            result = task.status === 'running' ? '' : 'Recovery decision unavailable. Inspect the task error.';
+        }
+      }
       for (const correction of (task.steering || []).filter(entry => entry.appliedAt))
         rows.push(
           { text: `You · correction delivered to ${label(task.member)}`, tone: 'user' },
@@ -118,7 +128,13 @@ export function workflowFeed(
         rows.push(...wrapText(`${label(task.member)} · ${action}`, width).map(text => ({ text, tone: 'muted' })));
       }
       if (task.error)
-        rows.push(...wrapText(`${label(task.member)}: ${task.error}`, width).map(text => ({ text, tone: 'system' })));
+        rows.push(
+          ...wrapText(`${label(task.member)}: ${task.error}`, width).map(text => ({ text, tone: 'system' })),
+          { text: '', tone: 'body' },
+          { text: '', tone: 'body' },
+        );
+      while (rows.length && rows.at(-1).text === '') rows.pop();
+      if (rows.length) rows.push({ text: '', tone: 'body' }, { text: '', tone: 'body' });
       continue;
     }
     const prior = task.dependsOn && allTasks.get(task.dependsOn);

@@ -1,5 +1,6 @@
 // Examples use the default roster. Model IDs are illustrative, not availability claims.
 export const COMMAND_EXAMPLES = {
+  '/recovery': '/recovery',
   '/roles list': '/roles list engineering',
   '/roles show': '/roles show frontend-dev',
   '/crew add': '/crew add designer Review accessibility and keyboard navigation.',

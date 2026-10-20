@@ -158,6 +158,10 @@ Stopping preserves edits. `/stop` cancels the current shared discussion and its 
 
 ## Tasks and workflow history
 
+`/recovery [WORKFLOW_ID]` requests fresh diagnosis and repair of an unfinished workflow. Without an ID, it selects the latest unfinished workflow associated with the current shared conversation (Crew Chat/Activity) or selected private conversation (Chat). It refuses completed or active workflows. Use `/workflow list` and supply an ID if no workflow matches.
+
+Unlike `/workflow resume`, `/recovery` renews the two-attempt automatic recovery budget, retires unfinished obsolete recovery branches, and reconnects original assignments before diagnosis. Completed steps and findings are retained, and unrelated paused tasks stay paused. The coordinator can request a read-only review, retry with a concrete alternative, or assign prerequisite implementation to an existing writer within an already writable workflow. Waiting questions still need `/answer`. The command does not change permissions or guarantee that external failures can be repaired.
+
 | Command                         | Purpose                                                     | Sample usage                   |
 | ------------------------------- | ----------------------------------------------------------- | ------------------------------ |
 | `/queue` or `/queue list`       | List task IDs, statuses, and dispatch state                 | `/queue list`                  |
@@ -174,6 +178,8 @@ Stopping preserves edits. `/stop` cancels the current shared discussion and its 
 Moving tasks respects dependencies and the single-writer rule. After failure or restart, inspect the task and workflow records. `/workflow resume ID` reuses the existing workflow, results, task IDs, and dependency chain; completed steps are not redispatched, and unrelated paused assignments remain paused. A partially completed failed assignment continues from its existing files and findings. Restart an interrupted discussion with `/discuss TOPIC` or a new direct message.
 
 `/workflow retry ID` deliberately starts a new workflow and may repeat completed edits; `/queue retry ID` creates a new standalone task. These retries differ from `/workflow resume ID`. Saved work starts paused after restart; `/queue resume` releases eligible queued tasks, while workflow resume releases only that workflow. A completed workflow means turns finished; inspect the review and summary to assess delivery.
+
+Workflow `PONGKAN_BLOCKED` reports trigger a coordinator recovery decision, with a maximum of two automatic attempts before stopping; an explicit /recovery request renews the budget. The coordinator can request a read-only teammate review of a prerequisite, give the original worker a concrete alternative, or assign prerequisite work to another existing teammate before the reporting task resumes. New writer tasks require an existing implementation assignment in the workflow and retain the selected teammate's permission mode. Completed assignments are preserved. Invalid recovery decisions, failed prerequisites, and unresolved blockers stop the workflow. Recovery does not change access settings, supply credentials, override approval decisions, or roll back project files. `/workflow resume ID` also evaluates a previously failed blocked assignment for recovery when attempts remain; it does not reset the limit.
 
 ## Views, progress, and changes
 
