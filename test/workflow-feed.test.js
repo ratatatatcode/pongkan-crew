@@ -82,7 +82,7 @@ test('Activity renders readable plans and separates assignments from Markdown re
   const output = workflowFeed(crew, 72)
     .map(row => row.text)
     .join('\n');
-  assert.match(output, /Reviewer: reviewer/);
+  assert.match(output, /Reviewer: Reviewer/);
   assert.match(output, /Assignment:\n/);
   assert.match(output, /\n\nResult\n/);
   assert.doesNotMatch(output, /\*\*/);

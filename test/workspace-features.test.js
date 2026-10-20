@@ -62,7 +62,7 @@ test('crew-task shows planning, assignments and completed handoffs in its source
   await app.crew.workflows.settled(flow.id);
   assert.equal(flow.status, 'completed');
   const output = screen(app.crew, app.selected, '', '', 140, 100, 0, null, { view: 'group' });
-  assert.match(output, /developer: Build navigation/);
+  assert.match(output, /Developer: Build navigation/);
   assert.match(output, /Verified keyboard navigation/);
   assert.doesNotMatch(output, /Chief ? Developer|Developer ? Reviewer|Reviewer ? Reviewer/);
   execute(app, '/conversation new group Another topic');

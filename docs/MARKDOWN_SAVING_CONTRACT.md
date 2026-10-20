@@ -14,7 +14,7 @@ This contract describes the current finished-record exporter in `src/markdown-ex
 
 ## What is saved
 
-Researcher's corrected scope treats “add” as adding the Markdown commands, not a new `/add` command or a change to `/crew add`. `/crew add` continues to add a teammate and does not create a Markdown result by itself.
+`/crew add` adds a teammate. It is separate from the `/markdown` commands and does not create a Markdown export by itself.
 
 - Export one combined document per finished workflow containing its goal, plan, assignments, coordination/revision turns, final review, and summary. Use one document title, task headings beneath it, and assignment/response subsections beneath each task; preserve response Markdown as supplied. Include available task IDs, members, kinds, statuses, timestamps, assignments, responses, clarification questions and answers, errors, and captured changed-file names.
 - Export finished standalone assignments as task documents. Completed, failed, cancelled, and interrupted records preserve available results. Running, queued, and waiting records are not exported; workflows and discussions also wait for their associated tasks to settle.

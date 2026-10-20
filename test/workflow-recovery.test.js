@@ -108,30 +108,33 @@ test('coordinator blocker can dispatch a different writer before retrying the co
   assert.doesNotThrow(() => validateState(structuredClone(crew.state)));
 });
 
-test('read-only runtime failure delegates execution to an existing writer before QA resumes', t => {
-  const { crew } = setup(t, {});
-  crew.queue.pause();
-  const flow = crew.workflows.start('Fix isolation and verify it');
-  crew.queue.enqueue('developer', 'Implement isolation', { workflowId: flow.id, kind: 'work', readOnly: false });
-  const qa = crew.queue.enqueue('reviewer', 'Independently verify isolation', {
-    workflowId: flow.id,
-    kind: 'work',
-    readOnly: true,
+for (const readOnly of [true, false, undefined]) {
+  test(`read-only runtime failure delegates execution with task readOnly=${readOnly}`, t => {
+    const { crew } = setup(t, {});
+    crew.queue.pause();
+    const flow = crew.workflows.start('Fix isolation and verify it');
+    crew.queue.enqueue('developer', 'Implement isolation', { workflowId: flow.id, kind: 'work', readOnly: false });
+    const qa = crew.queue.enqueue('reviewer', 'Independently verify isolation', {
+      workflowId: flow.id,
+      kind: 'work',
+      ...(readOnly === undefined ? {} : { readOnly }),
+    });
+    qa.executionAttempts = [{ kind: 'filesystem-access', policy: { approval: 'never' }, accessFailure: 'EPERM lstat' }];
+    assert.equal(crew.workflows.recover(qa, 'EPERM lstat; approval never'), true);
+    const diagnosis = crew.state.tasks.find(task => task.recoveryFor === qa.id);
+    diagnosis.status = 'completed';
+    diagnosis.result = JSON.stringify({ action: 'stop', member: 'reviewer', instruction: 'Need execution access' });
+    crew.workflows.onFinish(diagnosis);
+    const execution = crew.queue.get(qa.dependsOn);
+    assert.equal(execution.member, 'developer');
+    assert.equal(execution.readOnly, false);
+    assert.match(execution.text, /Do not edit source files/);
+    assert.match(qa.text, /Independently inspect/);
+    assert.equal(qa.readOnly, readOnly);
+    assert.equal(crew.member('reviewer').writable, false);
+    assert.equal(flow.status, 'working');
   });
-  qa.executionAttempts = [{ kind: 'filesystem-access', policy: { approval: 'never' }, accessFailure: 'EPERM lstat' }];
-  assert.equal(crew.workflows.recover(qa, 'EPERM lstat; approval never'), true);
-  const diagnosis = crew.state.tasks.find(task => task.recoveryFor === qa.id);
-  diagnosis.status = 'completed';
-  diagnosis.result = JSON.stringify({ action: 'stop', member: 'reviewer', instruction: 'Need execution access' });
-  crew.workflows.onFinish(diagnosis);
-  const execution = crew.queue.get(qa.dependsOn);
-  assert.equal(execution.member, 'developer');
-  assert.equal(execution.readOnly, false);
-  assert.match(execution.text, /Do not edit source files/);
-  assert.match(qa.text, /Independently inspect/);
-  assert.equal(qa.readOnly, true);
-  assert.equal(flow.status, 'working');
-});
+}
 
 test('recovery cannot add a writer task to a read-only workflow', async t => {
   const { crew, calls } = setup(t, { action: 'retry', member: 'researcher', instruction: 'Create a test.' });

@@ -71,7 +71,7 @@ What have you finished so far?
 Continue where you stopped.
 ```
 
-Messages sent while another shared turn is active queue after it. Use `/stop` to cancel work, `/queue resume` to dispatch saved queued tasks, and `/workflow resume ID` to explicitly continue unfinished workflow steps. Ordinary follow-ups in a conversation with unfinished workflow tasks are interpreted against the saved assignments.
+Messages sent while another shared turn is active queue after it. Use `/stop` to cancel work, `/queue resume` to dispatch saved queued tasks, and `/workflow pause ID` to pause one workflow. A running turn is stopped and retained as an interrupted step; `/workflow resume ID` continues unfinished steps and keeps completed work. `/workflow list [active|paused|all]` filters saved workflows, and `/workflow show ID` displays step results and errors. Ordinary follow-ups in a conversation with unfinished workflow tasks are interpreted against the saved assignments.
 
 Plain messages resume dispatch for the current conversation; unrelated paused assignments stay paused. Individual Chat continues to address the selected teammate. Messages entered in Activity use the current Crew Chat. Slash commands remain available as explicit overrides; `/workflow retry ID` deliberately restarts the entire workflow.
 

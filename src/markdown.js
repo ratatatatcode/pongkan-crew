@@ -1,3 +1,5 @@
+import { nameLabel, formatTeammateNames } from './name-display.js';
+
 const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 const graphemes = text => [...segmenter.segment(text)].map(part => part.segment);
 
@@ -92,7 +94,7 @@ export function wrapText(text, width, preserve = false) {
   return output;
 }
 
-export function renderMarkdown(text, width, { folder = '' } = {}) {
+export function renderMarkdown(text, width, { folder = '', names = [] } = {}) {
   width = Math.max(12, width);
   // Workflow responses stay as JSON in storage; present assignments as prose.
   let plan;
@@ -116,17 +118,17 @@ export function renderMarkdown(text, width, { folder = '' } = {}) {
     for (const [index, step] of plan.steps.entries()) {
       rows.push(
         { text: '', tone: 'body' },
-        ...wrapText(`${index + 1}. ${step.member}`, width).map(text => ({ text, tone: 'heading' })),
-        ...renderMarkdown(step.task, width - 2, { folder }).map(row => ({ ...row, text: '  ' + row.text })),
+        ...wrapText(`${index + 1}. ${nameLabel(step.member)}`, width).map(text => ({ text, tone: 'heading' })),
+        ...renderMarkdown(step.task, width - 2, { folder, names }).map(row => ({ ...row, text: '  ' + row.text })),
       );
     }
     rows.push(
       { text: '', tone: 'body' },
-      ...wrapText(`Reviewer: ${plan.reviewer}`, width).map(text => ({ text, tone: 'heading' })),
+      ...wrapText(`Reviewer: ${nameLabel(plan.reviewer)}`, width).map(text => ({ text, tone: 'heading' })),
     );
     return rows;
   }
-  const source = clean(text).split('\n'),
+  const source = clean(formatTeammateNames(text, names)).split('\n'),
     result = [],
     references = [];
   const emit = (text, tone = 'body', prefix = '', continuation = prefix) => {

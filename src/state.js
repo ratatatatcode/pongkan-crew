@@ -11,6 +11,7 @@ const FLOW_STATUS = new Set([
   'reviewing',
   'summarizing',
   'collaborating',
+  'paused',
   'completed',
   'failed',
   'cancelled',
@@ -365,6 +366,7 @@ export function validateState(state) {
     )
       invalid();
     if (task.dispatchPaused !== undefined && typeof task.dispatchPaused !== 'boolean') invalid();
+    if (task.pauseRequested !== undefined && typeof task.pauseRequested !== 'boolean') invalid();
     if (task.result !== undefined && typeof task.result !== 'string') invalid();
     if (task.displayText !== undefined && typeof task.displayText !== 'string') invalid();
     if (

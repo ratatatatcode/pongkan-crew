@@ -29,8 +29,9 @@ const CLI_TIPS = [
 export function cliTip(now = Date.now()) {
   return `Tip: ${CLI_TIPS[Math.floor(now / 30000) % CLI_TIPS.length]}`;
 }
-function messageBody(message, width, folder, speaker) {
+function messageBody(message, width, folder, speaker, names) {
   let text = message.text;
+  const namesKey = JSON.stringify(names);
   if (message.role === 'assistant' && speaker) {
     const trimmed = text.trimStart();
     if (trimmed.slice(0, speaker.length + 1).toLowerCase() === `${speaker.toLowerCase()}:`) {
@@ -43,14 +44,15 @@ function messageBody(message, width, folder, speaker) {
     cached.text === text &&
     cached.role === message.role &&
     cached.width === width &&
-    cached.folder === folder
+    cached.folder === folder &&
+    cached.namesKey === namesKey
   )
     return cached.rows;
   const rows =
     message.role === 'assistant' || message.role === 'user'
-      ? renderMarkdown(text, width, { folder })
+      ? renderMarkdown(text, width, { folder, names })
       : wrap(text, width).map(text => ({ text, tone: 'body' }));
-  renderedMessages.set(message, { text, role: message.role, width, folder, rows });
+  renderedMessages.set(message, { text, role: message.role, width, folder, namesKey, rows });
   return rows;
 }
 export function activityLabel(member, now = Date.now()) {
@@ -100,14 +102,23 @@ export function screen(
   const clarificationRows = request => [
     row(request.answeredAt ? 'Question · Answered' : 'Question · Needs clarification', 'heading'),
     row(''),
-    ...renderMarkdown(request.question, readingWidth, { folder: crew.folder }),
+    ...renderMarkdown(request.question, readingWidth, {
+      folder: crew.folder,
+      names: crew.state.members.map(member => member.name),
+    }),
     ...(!request.answeredAt ? [row(''), row('Shift+Right: answer | Enter or Shift+Left: send', 'selected')] : []),
   ];
   const conversation = (
     view === 'chat' && !panel ? displayMessages(member, crew.state.tasks, crew.state.workflows) : []
   ).flatMap(m => {
     const label = m.role === 'user' ? 'You' : m.role === 'assistant' ? nameLabel(selected) : 'System';
-    const body = messageBody(m, readingWidth, crew.folder, selected);
+    const body = messageBody(
+      m,
+      readingWidth,
+      crew.folder,
+      selected,
+      crew.state.members.map(member => member.name),
+    );
     return [row(label, m.role), ...body, row(''), row('')];
   });
   if (!conversation.length)
@@ -164,7 +175,13 @@ export function screen(
         at: promptTime,
         rows: [
           row(`${nameLabel(m.speaker)}${m.queued ? ' · queued' : ''}`, m.role),
-          ...messageBody(m, readingWidth, crew.folder, m.speaker),
+          ...messageBody(
+            m,
+            readingWidth,
+            crew.folder,
+            m.speaker,
+            crew.state.members.map(member => member.name),
+          ),
           row(''),
           row(''),
         ],
@@ -189,7 +206,10 @@ export function screen(
         at: input.createdAt,
         rows: [
           row('You', 'user'),
-          ...renderMarkdown(input.text, readingWidth, { folder: crew.folder }),
+          ...renderMarkdown(input.text, readingWidth, {
+            folder: crew.folder,
+            names: crew.state.members.map(member => member.name),
+          }),
           row(''),
           ...(input.question
             ? clarificationRows(input)
@@ -249,7 +269,10 @@ export function screen(
       content.push(
         row(''),
         row('You · queued execution', 'user'),
-        ...renderMarkdown(discussion.pendingExecution, readingWidth, { folder: crew.folder }),
+        ...renderMarkdown(discussion.pendingExecution, readingWidth, {
+          folder: crew.folder,
+          names: crew.state.members.map(member => member.name),
+        }),
         row('Your execution request will start after this discussion finishes.', 'muted'),
       );
     for (const task of crew.state.tasks || []) {
@@ -259,7 +282,10 @@ export function screen(
         content.push(
           row(''),
           row(`You · queued correction for ${nameLabel(task.member)}`, 'user'),
-          ...renderMarkdown(correction.text, readingWidth, { folder: crew.folder }),
+          ...renderMarkdown(correction.text, readingWidth, {
+            folder: crew.folder,
+            names: crew.state.members.map(member => member.name),
+          }),
           row('Waiting for the next task boundary; the current turn continues.', 'muted'),
         );
     }
@@ -280,7 +306,12 @@ export function screen(
         ...wrap(`Status · ${capitalize(inputStatus(crew, latest))}`, readingWidth).map(text => row(text, 'muted')),
       );
     if (latest && view === 'chat' && ['queued', 'routing', 'blocked', 'interrupted'].includes(latest.status))
-      content.push(...renderMarkdown(latest.text, readingWidth, { folder: crew.folder }));
+      content.push(
+        ...renderMarkdown(latest.text, readingWidth, {
+          folder: crew.folder,
+          names: crew.state.members.map(member => member.name),
+        }),
+      );
     if (latest?.question && view === 'chat') content.push(row(''), ...clarificationRows(latest));
   }
   if (view === 'activity') {
@@ -290,7 +321,10 @@ export function screen(
       const style = activityStyle(event);
       return [
         row(`${stamp}  ${style.label}`, style.tone),
-        ...renderMarkdown(event.text, readingWidth, { folder: crew.folder }).map(item => ({
+        ...renderMarkdown(event.text, readingWidth, {
+          folder: crew.folder,
+          names: crew.state.members.map(member => member.name),
+        }).map(item => ({
           ...item,
           tone: item.tone === 'body' ? style.tone : item.tone,
         })),

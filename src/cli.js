@@ -162,8 +162,14 @@ async function main() {
     if (closing) return;
     await app.quit();
     try {
-      await launchRestart(resolve(process.argv[1]), args);
-      process.exit(0);
+      if (process.env.PONGKAN_CREW_SUPERVISED === '1' && process.connected) {
+        await new Promise((resolveSent, rejectSent) =>
+          process.send({ type: 'pongkan-restart' }, error => (error ? rejectSent(error) : resolveSent())),
+        );
+        process.exit(0);
+      }
+      const code = await launchRestart(resolve(process.argv[1]), args);
+      process.exit(code);
     } catch (error) {
       process.stderr.write(`Could not restart Crew: ${error.message}\n`);
       process.exitCode = 1;
@@ -352,6 +358,15 @@ async function main() {
   }, 1000);
   ticker.unref();
   render();
+  if (process.env.PONGKAN_CREW_SUPERVISED === '1' && process.connected) {
+    process.send({ type: 'pongkan-ready' }, error => {
+      if (error) {
+        console.error(`Restart supervisor unavailable: ${error.message}`);
+        void app.quit();
+      }
+    });
+    process.channel?.unref();
+  }
 }
 main().catch(error => {
   console.error(error.message);
