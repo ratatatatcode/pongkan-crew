@@ -72,7 +72,7 @@ export class Discussions {
       { submission },
     );
   }
-  start(text, target = null, { submission = 'enter', direct = false } = {}) {
+  start(text, target = null, { submission = 'enter', direct = false, rounds = 2 } = {}) {
     if (!text?.trim()) throw new Error('Use /discuss TOPIC or @NAME MESSAGE.');
     const active = this.current?.status === 'working' ? this.current : null;
     const participants = this.current?.participants;
@@ -101,12 +101,13 @@ export class Discussions {
       for (const id of discussion.taskIds) this.crew.queue.get(id).discussionMessageIndex ??= prior;
       discussion.messages.push({ ...userMessage, queued: true });
     } else this.crew.state.discussions.push(discussion);
-    const turns = target || active ? [...members] : [...members, ...members];
+    const turns = target || active || rounds === 1 ? [...members] : [...members, ...members];
     const chief = members.find(m => m.name === this.crew.leadName);
-    if (!target && chief) turns.push(chief);
+    const summarize = !target && !!chief && rounds !== 1;
+    if (summarize) turns.push(chief);
     let previous = active?.taskIds.at(-1);
     for (const [index, member] of turns.entries()) {
-      const summary = !target && !!chief && index === turns.length - 1;
+      const summary = summarize && index === turns.length - 1;
       const task = this.crew.queue.enqueue(
         member.name,
         direct

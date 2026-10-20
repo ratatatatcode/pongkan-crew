@@ -113,7 +113,7 @@ test('/recovery completes a fresh repair without redispatching completed steps',
       });
     if (task.repairFor) {
       assert.equal(task.kind, 'revision');
-      assert.ok(args.includes('workspace-write'));
+      assert.ok(args.includes('--approve-for-me'));
     }
     event({ type: 'item.completed', item: { type: 'agent_message', text } });
   };

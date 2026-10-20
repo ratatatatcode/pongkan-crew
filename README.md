@@ -47,7 +47,7 @@ Use `/folder` inside the app to confirm the target.
 
 ## Usage
 
-The default crew is **Chief, Researcher, Developer, and Reviewer**. Press **Tab / Shift+Tab** to cycle through teammates and Crew Chat. Press **F2 / Shift+F2** to switch among Chat, Crew Chat, and Activity. Type normally and press Enter. Crew Chat sends plain messages directly to Chief; `@NAME` sends directly to that teammate. Individual Chat sends to the selected teammate.
+The default crew is **Chief, Researcher, Developer, and Reviewer**. Press **Tab / Shift+Tab** to cycle through teammates and Crew Chat. Press **F2 / Shift+F2** to switch among Chat, Crew Chat, and Activity. Type normally and press Enter. Crew Chat sends plain messages to the designated lead. Use /discuss for collective replies. `@NAME` addresses that teammate. Individual Chat sends to the selected teammate.
 
 | Where you type        | Who receives your message                               | Sample usage                                  |
 | --------------------- | ------------------------------------------------------- | --------------------------------------------- |
@@ -55,13 +55,13 @@ The default crew is **Chief, Researcher, Developer, and Reviewer**. Press **Tab 
 | Individual Chat       | The selected teammate                                   | `How does state persistence work?`            |
 | `@NAME MESSAGE`       | The named teammate, using shared Crew Chat context      | `@developer Implement the agreed layout.`     |
 
-Use your own words; no specific verb or keyword is required. Crew interprets each message and routes it to a reply, assignment, discussion, or workflow within the crew's permissions. In Crew Chat, a natural follow-up such as `Proceed with what you've discussed.` can start a coordinated workflow using the recent discussion as context. Use `/discuss`, `/task`, or `/crew-task` when you prefer an explicit command.
+Plain messages go directly to the selected teammate in Individual Chat, or to the designated lead in Crew Chat unless you name a recipient with `@NAME`. When that conversation has unfinished workflow tasks, follow-ups are interpreted against the current assignments so they can resume or correct existing work. This uses saved conversation and task state, not phrase matching. Use `/task` or `/crew-task` to start a new coordinated workflow, and `/discuss` for team discussion.
 
 Natural-language routing does not grant access: each action still follows the selected recipient's permissions. Developer can implement an edit or perform authorized Git work directly; Reviewer stays read-only. Questions and actions use the same delivery path.
 
 Every personality uses this same delivery and execution behavior. Styles change wording and tone, never permissions or action selection. Short acknowledgements such as “Okay” keep the recipient's configured access and conversation context.
 
-Messages are saved and queued for the routed recipient or workflow. Follow-ups retain the conversation context. Use `/discuss` for team discussion and `/task` or `/crew-task` for an explicit coordinated workflow with independent review. You can also approve a plan in your own words; Crew uses recent Crew Chat context to interpret the request.
+Messages are saved and queued for the recipient or workflow. Follow-ups retain the conversation context. Use `/discuss` for team discussion and `/task` or `/crew-task` for an explicit coordinated workflow with independent review. With no unfinished workflow in context, ordinary text stays with the recipient; when unfinished work exists, the router can continue it without repeating completed steps.
 
 ```text
 How should we improve the navigation?
@@ -71,7 +71,7 @@ What have you finished so far?
 Continue where you stopped.
 ```
 
-Messages sent while another shared turn is active queue after it. Use `/stop` to cancel work, `/queue resume` to dispatch saved queued tasks, and `/workflow resume ID` to continue unfinished workflow steps. Plain `continue` is delivered to the recipient as conversation, without a separate classifier.
+Messages sent while another shared turn is active queue after it. Use `/stop` to cancel work, `/queue resume` to dispatch saved queued tasks, and `/workflow resume ID` to explicitly continue unfinished workflow steps. Ordinary follow-ups in a conversation with unfinished workflow tasks are interpreted against the saved assignments.
 
 Plain messages resume dispatch for the current conversation; unrelated paused assignments stay paused. Individual Chat continues to address the selected teammate. Messages entered in Activity use the current Crew Chat. Slash commands remain available as explicit overrides; `/workflow retry ID` deliberately restarts the entire workflow.
 
@@ -85,18 +85,18 @@ To ask a question of only one teammate, start the message with `@NAME`:
 
 `@developer Replace Show and Hide with Show summary and Hide summary.` queues one Developer turn with write access. `@developer Commit and push.` uses the same direct path. Enter and Shift+Left use the same delivery. A mention does not change the recipient's configured access.
 
-Ordinary messages can request one recipient's reply or a workflow, depending on their meaning. `/discuss` explicitly schedules two rounds and a lead summary.
+Ordinary messages request one recipient's reply. Use `@NAME` to address a teammate, or `/discuss` to request replies from the crew. `/discuss` explicitly schedules two rounds and a lead summary.
 
-Crew Chat and individual chats use separate sessions. A teammate's individual chat does not automatically receive what they just discussed in Crew Chat. Continue with `@NAME` in Crew Chat when you want them to use that discussion, or include the relevant details in their individual chat. In Crew Chat, approve the plan naturally—for example, `Proceed with what you've discussed.`—or use `/crew-task` for an explicit command.
+Crew Chat and individual chats use separate sessions. A teammate's individual chat does not automatically receive what they just discussed in Crew Chat. Continue with `@NAME` in Crew Chat when you want them to use that discussion, or include the relevant details in their individual chat. Use `/crew-task` to start a workflow from the saved discussion.
 
 ### Optional `/task` and `/crew-task` overrides
 
-You can ask for work in ordinary language instead of typing either command. Crew interprets the request and routes it to a reply or coordinated workflow as appropriate. For example, ask Chief to build a feature and have Reviewer check it; Crew can plan and assign the work automatically. Use `/task` or `/crew-task` when you want to explicitly choose a workflow path.
+You can ask a teammate for work in ordinary language within their configured access. Use `/task` or `/crew-task` when you want coordinated planning, implementation, and independent review.
 
-| Command or request  | Goal                                              | Crew Chat context                                   | Requirement                                                                   | Opens after starting                                           | Sample usage                                                                                        |
-| ------------------- | ------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `/task GOAL`        | Required                                          | Included when run from Crew Chat; otherwise omitted | No discussion required                                                        | Crew Chat when started there; otherwise lead's individual Chat | `/task Add filters and ask Reviewer to check them.`                                                 |
-| `/crew-task [GOAL]` | Optional; without one, implements the agreed plan | Always uses the latest discussion, from any view    | A saved Crew Chat discussion; any active discussion must finish or be stopped | Crew Chat                                                      | `/crew-task` or say `Proceed with what you've discussed.` in Crew Chat to use the saved discussion. |
+| Command or request  | Goal                                              | Crew Chat context                                   | Requirement                                                                   | Opens after starting                                           | Sample usage                                            |
+| ------------------- | ------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------- |
+| `/task GOAL`        | Required                                          | Included when run from Crew Chat; otherwise omitted | No discussion required                                                        | Crew Chat when started there; otherwise lead's individual Chat | `/task Add filters and ask Reviewer to check them.`     |
+| `/crew-task [GOAL]` | Optional; without one, implements the agreed plan | Always uses the latest discussion, from any view    | A saved Crew Chat discussion; any active discussion must finish or be stopped | Crew Chat                                                      | `/crew-task` or `/crew-task Implement the agreed plan.` |
 
 These optional overrides create a coordinated workflow in which the lead plans assignments, requests an independent review, and summarizes the result. Use `/task` for a standalone goal and `/crew-task` to carry the current Crew Chat discussion into implementation. Plans, live teammate replies, review, and summaries appear in the originating Crew Chat. Future assignments and task records appear in Activity.
 
@@ -182,7 +182,7 @@ Writers can edit project files. Planning, discussions, and reviews are read-only
 Use `/permissions [NAME]` to choose a teammate's mode, or `/permissions MODE [NAME]` to set one directly (`ask`, `approve`, `full`, or `read-only`). These modes configure the Codex CLI sandbox and approval behavior; they do not change Windows account permissions. The teammate's Crew role still applies, so a read-only teammate cannot write even when another mode is selected.
 
 - **Ask for approval** keeps workspace writes inside the workspace sandbox and requests approval for eligible access outside it. Crew runs Codex noninteractively, so requests that need a live user prompt may stop without being approved.
-- **Approve for me** uses Codex's workspace-write sandbox and automatic review for eligible requests. It does not grant unrestricted filesystem access.
+- **Approve for me** uses Codex's native `--approve-for-me` option for workspace-write sandboxing and automatic review of eligible requests, including fresh and resumed turns. Node/npm sandbox failures trigger a scoped execution-tool approval request rather than a chat permission question. It does not grant unrestricted filesystem access.
 - **Full Access** removes Codex's filesystem sandbox and runs without approval. Use only when you intend to allow access beyond the project workspace.
 - **Read Only** blocks edits and access escalation.
 

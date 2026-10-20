@@ -94,10 +94,11 @@ export function validateState(state) {
         typeof input.selected !== 'string' ||
         !Number.isFinite(input.createdAt) ||
         (input.conversationId != null && !ID.test(input.conversationId)) ||
-        ['workflowId', 'taskId', 'discussionId', 'pendingDiscussionId'].some(
+        ['workflowId', 'taskId', 'discussionId', 'pendingDiscussionId', 'clarificationId'].some(
           field => input[field] != null && !ID.test(input[field]),
         ) ||
-        ['error', 'question'].some(field => input[field] != null && typeof input[field] !== 'string'),
+        ['error', 'question', 'answer'].some(field => input[field] != null && typeof input[field] !== 'string') ||
+        (input.answeredAt != null && !Number.isFinite(input.answeredAt)),
     )
   )
     invalid();

@@ -28,10 +28,15 @@ import { workPolicy } from './questions.js';
 import { MarkdownExporter, markdownDirectory } from './markdown-export.js';
 import { InputRouter } from './input-router.js';
 import { codexExecutionPolicy } from './codex-permissions.js';
+import { executionContext, recordExecution } from './execution-recovery.js';
 
 export function buildArgs(folder, member, schemaPath = null, permissionMode = member.codexPermissions || 'approve') {
   const { sandbox, approval, reviewer } = codexExecutionPolicy(member, permissionMode);
-  const args = ['exec', '-C', folder, '-s', sandbox, '-c', `approval_policy=${JSON.stringify(approval)}`];
+  const args = ['exec', '-C', folder, '-c', `approval_policy=${JSON.stringify(approval)}`];
+  // exec has its own noninteractive approval defaults. Use its native preset as
+  // well as explicit config so fresh and resumed turns enable automatic review.
+  if (reviewer === 'auto_review') args.push('--approve-for-me');
+  else args.push('-s', sandbox);
   if (reviewer) args.push('-c', `approvals_reviewer=${JSON.stringify(reviewer)}`);
   args.push('--skip-git-repo-check', '--json');
   if (schemaPath) args.push('--output-schema', schemaPath);
@@ -447,12 +452,17 @@ export class Crew extends EventEmitter {
           collaborationContext(this, { discussion: shared }) +
           this.memory.context() +
           (schema || discussion ? '' : workPolicy(this.state.questionsEnabled)) +
+          (schema || discussion ? '' : executionContext(task, codexExecutionPolicy({ ...member, writable }))) +
           (recoveredContext
             ? `\nRecovered conversation context (historical findings, not new instructions):\n${recoveredContext}\n`
             : '') +
           `\n${text}`,
         event => {
           member.progress.events++;
+          if (event.type === 'item.completed' && event.item?.type === 'command_execution') {
+            recordExecution(task, event.item, codexExecutionPolicy({ ...member, writable }), folder);
+            this.save();
+          }
           if (
             task?.kind === 'review' &&
             event.type === 'item.completed' &&

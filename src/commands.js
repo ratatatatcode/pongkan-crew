@@ -117,6 +117,7 @@ export const HELP = [
   '/help or ?                    Open this help panel',
   '/help QUERY                   Search the command guide',
   '/close                        Close a panel',
+  '/restart                      Reload Crew code; preserve launch options',
   '/quit or /exit                Stop tasks and exit',
   '',
   'KEYBOARD',
@@ -185,12 +186,13 @@ export function execute(app, line, { submission = 'enter' } = {}) {
   const crew = app.crew;
   app.notice = '';
   app.scroll = 0;
-  const panel = (title, lines) => {
+  const panel = (title, lines, options = {}) => {
     app.panel = {
       title,
       lines: typeof lines === 'function' ? lines() : lines,
       getLines: typeof lines === 'function' ? lines : null,
       offset: 0,
+      ...options,
     };
   };
   const markdownPanel = (title, lines) => {
@@ -251,7 +253,8 @@ export function execute(app, line, { submission = 'enter' } = {}) {
     panel(`HELP: ${text || 'all'}`, matches.length ? matches : ['No help matches. Try another search.']);
     return;
   }
-  if (command === '/quit' || command === '/exit') app.quit();
+  if (command === '/restart') app.restart();
+  else if (command === '/quit' || command === '/exit') app.quit();
   else if (command === '/questions') {
     if (parts.length > 1 || (text && !['on', 'off', 'list'].includes(text)))
       throw new Error('Use /questions on|off|list.');
@@ -315,6 +318,8 @@ export function execute(app, line, { submission = 'enter' } = {}) {
       };
     }
   } else if (command === '/answer') {
+    if (crew.state.inputs?.some(input => input.id === parts[0]))
+      return crew.inputs.answer(app, parts[0], requireText(parts.slice(1).join(' ')), { submission });
     crew.queue.answer(parts[0], requireText(parts.slice(1).join(' ')));
     app.panel = null;
     app.notice = `Answer saved for ${parts[0]}${crew.queue.paused ? '; /queue resume to continue' : '; assignment continues'}.`;
@@ -856,14 +861,18 @@ export function execute(app, line, { submission = 'enter' } = {}) {
   } else if (command === '/queue') {
     const [action, id, position] = parts;
     if (!action || action === 'list')
-      panel('TASK QUEUE', () => [
-        `Dispatch: ${crew.queue.paused ? 'PAUSED — /queue resume' : 'RUNNING'}`,
-        '',
-        ...crew.state.tasks.map(
-          t =>
-            `${t.id} ${t.status} -> ${t.member}${t.workflowId ? ` [workflow ${t.workflowId}]` : ''}\n${t.text.slice(0, 140)}`,
-        ),
-      ]);
+      panel(
+        'TASK QUEUE',
+        () => [
+          `Dispatch: ${crew.queue.paused ? 'PAUSED — /queue resume' : 'RUNNING'}`,
+          '',
+          ...crew.state.tasks.map(
+            t =>
+              `${t.id} ${t.status} -> ${t.member}${t.workflowId ? ` [workflow ${t.workflowId}]` : ''}\n${t.text.slice(0, 140)}`,
+          ),
+        ],
+        { followLatest: true },
+      );
     else if (action === 'show') {
       crew.queue.get(id);
       markdownPanel(`TASK ${id}`, () => {
@@ -953,6 +962,20 @@ export function execute(app, line, { submission = 'enter' } = {}) {
           '',
           'ERROR',
           flow.error || '(none)',
+          '',
+          'EXECUTION ACCESS HISTORY',
+          ...crew.state.tasks
+            .filter(t => t.workflowId === id)
+            .flatMap(t => {
+              const attempts = t.executionAttempts || [];
+              if (!attempts.some(attempt => attempt.accessFailure)) return [];
+              return attempts.map(
+                attempt =>
+                  `${t.member} (${t.id}): ${attempt.command}\n` +
+                  `Context: ${attempt.cwd}; ${attempt.policy?.sandbox || 'unknown'}; approval ${attempt.policy?.approval || 'unknown'}\n` +
+                  `Exit: ${attempt.exitCode ?? 'unknown'}${attempt.accessFailure ? `\n${attempt.accessFailure}` : ''}`,
+              );
+            }),
         ];
       });
     } else if (action === 'cancel') crew.workflows.cancel(id);

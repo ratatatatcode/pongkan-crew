@@ -3,8 +3,11 @@ export const MOUSE_OFF = '\x1b[?1006l\x1b[?1000l';
 
 // Positive amounts move toward older messages; panels count from the top.
 export function scrollView(app, amount) {
-  if (app.panel) app.panel.offset = Math.max(0, (app.panel.offset || 0) - amount);
-  else if (app.view === 'activity') app.activityScroll = Math.max(0, app.activityScroll + amount);
+  if (app.panel) {
+    app.panel.offset = Math.max(0, (app.panel.offset || 0) - amount);
+    if (amount > 0) app.panel.followLatest = false;
+    else if (app.panel.maxOffset != null && app.panel.offset >= app.panel.maxOffset) app.panel.followLatest = true;
+  } else if (app.view === 'activity') app.activityScroll = Math.max(0, app.activityScroll + amount);
   else app.scroll = Math.max(0, app.scroll + amount);
 }
 

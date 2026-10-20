@@ -27,7 +27,8 @@ test('folder state restores independent conversations and resets interrupted wor
 test('Codex arguments preserve folder, sandbox and explicit session identity', () => {
   const args = buildArgs('C:/project with spaces', { name: 'developer', threadId: 'abc' });
   assert.equal(args[args.indexOf('-C') + 1], 'C:/project with spaces');
-  assert.equal(args[args.indexOf('-s') + 1], 'workspace-write');
+  assert.ok(args.includes('--approve-for-me'));
+  assert.ok(!args.includes('-s'), 'native approval preset conflicts with --sandbox');
   assert.deepEqual(args.slice(-3), ['resume', 'abc', '-']);
   assert.equal(buildArgs('/project', { name: 'reviewer' }).includes('read-only'), true);
 });
@@ -36,11 +37,13 @@ test('crew routes sandbox escalation to automatic review without widening role a
   const writerArgs = buildArgs('/project', { name: 'developer', writable: true });
   assert.ok(writerArgs.includes('approval_policy="on-request"'));
   assert.ok(writerArgs.includes('approvals_reviewer="auto_review"'));
-  assert.equal(writerArgs[writerArgs.indexOf('-s') + 1], 'workspace-write');
+  assert.ok(writerArgs.includes('--approve-for-me'));
+  assert.ok(!writerArgs.includes('-s'));
 
   const readerArgs = buildArgs('/project', { name: 'reviewer', writable: false });
   assert.ok(readerArgs.includes('approval_policy="never"'));
   assert.ok(!readerArgs.some(arg => arg.includes('approvals_reviewer=')));
+  assert.ok(!readerArgs.includes('--approve-for-me'));
   assert.equal(readerArgs[readerArgs.indexOf('-s') + 1], 'read-only');
   assert.ok(![...writerArgs, ...readerArgs].some(arg => arg.includes('dangerously-bypass')));
 });
@@ -50,18 +53,22 @@ test('Codex permission modes map to sandbox and approval settings while role acc
   assert.equal(ask[ask.indexOf('-s') + 1], 'workspace-write');
   assert.ok(ask.includes('approval_policy="on-request"'));
   assert.ok(ask.includes('approvals_reviewer="user"'));
+  assert.ok(!ask.includes('--approve-for-me'));
 
   const approve = buildArgs('/project', { name: 'developer', writable: true }, null, 'approve');
-  assert.equal(approve[approve.indexOf('-s') + 1], 'workspace-write');
+  assert.ok(!approve.includes('-s'));
   assert.ok(approve.includes('approvals_reviewer="auto_review"'));
+  assert.ok(approve.includes('--approve-for-me'));
 
   const full = buildArgs('/project', { name: 'developer', writable: true }, null, 'full');
   assert.equal(full[full.indexOf('-s') + 1], 'danger-full-access');
   assert.ok(full.includes('approval_policy="never"'));
+  assert.ok(!full.includes('--approve-for-me'));
 
   const readOnly = buildArgs('/project', { name: 'developer', writable: true }, null, 'read-only');
   assert.equal(readOnly[readOnly.indexOf('-s') + 1], 'read-only');
   assert.ok(readOnly.includes('approval_policy="never"'));
+  assert.ok(!readOnly.includes('--approve-for-me'));
 
   const readOnlyRole = buildArgs('/project', { name: 'reviewer', writable: false }, null, 'full');
   assert.equal(readOnlyRole[readOnlyRole.indexOf('-s') + 1], 'read-only');

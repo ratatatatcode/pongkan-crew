@@ -24,7 +24,7 @@ test('directed correction reaches the running writer on continuation, not a disc
         text = JSON.stringify({ steps: [{ member: 'developer', task: 'Build the toggle' }], reviewer: 'reviewer' });
       if (task.kind === 'work') {
         writerTurns++;
-        assert.ok(args.includes('workspace-write'));
+        assert.ok(args.includes('--approve-for-me'));
         if (writerTurns === 1) {
           started();
           await gate;
