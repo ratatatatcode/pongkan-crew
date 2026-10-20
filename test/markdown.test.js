@@ -11,10 +11,10 @@ test('workflow JSON displays numbered assignments and reviewer instead of serial
     ],
     reviewer: 'reviewer',
   };
-  const output = content(renderMarkdown(JSON.stringify(plan), 60));
-  assert.match(output, /1\. developer/);
+  const output = content(renderMarkdown(JSON.stringify(plan), 60, { names: ['developer', 'reviewer'] }));
+  assert.match(output, /1\. Developer/);
   assert.match(output, /Build the app\./);
-  assert.match(output, /Reviewer: reviewer/);
+  assert.match(output, /Reviewer: Reviewer/);
   assert.doesNotMatch(output, /"steps"|"member"/);
 });
 

@@ -42,7 +42,7 @@ test('workflow chat displays the goal and readable plan instead of internal prom
     finishPlan();
   }
   await crew.workflows.settled(flow.id);
-  assert.match(render(), /developer: Implement feature/);
+  assert.match(render(), /Developer: Implement feature/);
   assert.match(render(), /Completed feature and review/);
   assert.doesNotMatch(render(), /PONGKAN_SUMMARY|Previous teammate results|"steps"|Roster:/);
   assert.doesNotMatch(screen(crew, 'developer', '', '', 140, 100), /Previous teammate results/);
@@ -54,7 +54,7 @@ test('workflow chat displays the goal and readable plan instead of internal prom
   crew.save();
   const restored = new Crew(crew.folder);
   assert.doesNotMatch(screen(restored, 'chief', '', '', 140, 100), /PONGKAN_PLAN|PONGKAN_SUMMARY|"steps"|Roster:/);
-  assert.match(screen(restored, 'chief', '', '', 140, 100), /developer: Implement feature/);
+  assert.match(screen(restored, 'chief', '', '', 140, 100), /Developer: Implement feature/);
   restored.member('chief').messages.push({ role: 'user', text: 'Explain PONGKAN_PLAN and Return ONLY JSON to me.' });
   assert.match(screen(restored, 'chief', '', '', 140, 100), /Explain PONGKAN_PLAN and Return ONLY JSON to me/);
 });

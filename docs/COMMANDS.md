@@ -163,20 +163,21 @@ Stopping preserves edits. `/stop` cancels the current shared discussion and its 
 
 Unlike `/workflow resume`, `/recovery` renews the two-attempt automatic recovery budget, retires unfinished obsolete recovery branches, and reconnects original assignments before diagnosis. Completed steps and findings are retained, and unrelated paused tasks stay paused. The coordinator can request a read-only review, retry with a concrete alternative, or assign prerequisite implementation to an existing writer within an already writable workflow. Waiting questions still need `/answer`. The command does not change permissions or guarantee that external failures can be repaired.
 
-| Command                         | Purpose                                                             | Sample usage                   |
-| ------------------------------- | ------------------------------------------------------------------- | ------------------------------ |
-| `/queue` or `/queue list`       | List task IDs, statuses, and dispatch state from the newest entries | `/queue list`                  |
-| `/queue show TASK_ID`           | Read prompt, result, error, dependency, and timing                  | `/queue show TASK_ID`          |
-| `/queue pause`                  | Stop new dispatch while active work continues                       | `/queue pause`                 |
-| `/queue resume`                 | Resume dispatch of eligible queued tasks                            | `/queue resume`                |
-| `/queue move TASK_ID POSITION`  | Move a queued task to a one-based queue position                    | `/queue move TASK_ID 1`        |
-| `/queue retry TASK_ID`          | Create a retry of a finished standalone task                        | `/queue retry TASK_ID`         |
-| `/workflow` or `/workflow list` | List coordinated workflows                                          | `/workflow list`               |
-| `/workflow show WORKFLOW_ID`    | Inspect goal, assignments, statuses, summary, and error             | `/workflow show WORKFLOW_ID`   |
-| `/workflow resume WORKFLOW_ID`  | Continue unfinished steps, preserving completed assignments         | `/workflow resume WORKFLOW_ID` |
-| `/workflow retry WORKFLOW_ID`   | Start a new attempt at a finished/interrupted workflow              | `/workflow retry WORKFLOW_ID`  |
+| Command                        | Purpose                                                             | Sample usage                  |
+| ------------------------------ | ------------------------------------------------------------------- | ----------------------------- |
+| `/queue` or `/queue list`      | List task IDs, statuses, and dispatch state from the newest entries | `/queue list`                 |
+| `/queue show TASK_ID`          | Read prompt, result, error, dependency, and timing                  | `/queue show TASK_ID`         |
+| `/queue pause`                 | Stop new dispatch while active work continues                       | `/queue pause`                |
+| `/queue resume`                | Resume dispatch of eligible queued tasks                            | `/queue resume`               |
+| `/queue move TASK_ID POSITION` | Move a queued task to a one-based queue position                    | `/queue move TASK_ID 1`       |
+| `/queue retry TASK_ID`         | Create a retry of a finished standalone task                        | `/queue retry TASK_ID`        |
+| `/workflow list [STATUS]`      | List workflows with step counts; filter active, paused, or all      | `/workflow list paused`       |
+| `/workflow show WORKFLOW_ID`   | Inspect goal, step progress, results, summary, and errors           | `/workflow show 1a2b3c4d`     |
+| `/workflow pause WORKFLOW_ID`  | Pause one workflow after stopping its active turn                   | `/workflow pause 1a2b3c4d`    |
+| `/workflow resume WORKFLOW_ID` | Continue unfinished steps, preserving completed assignments         | `/workflow resume 1a2b3c4d`   |
+| `/workflow retry WORKFLOW_ID`  | Start a new attempt at a finished/interrupted workflow              | `/workflow retry WORKFLOW_ID` |
 
-Moving tasks respects dependencies and the single-writer rule. After failure or restart, inspect the task and workflow records. `/workflow resume ID` reuses the existing workflow, results, task IDs, and dependency chain; completed steps are not redispatched, and unrelated paused assignments remain paused. A partially completed failed assignment continues from its existing files and findings. Restart an interrupted discussion with `/discuss TOPIC` or a new direct message.
+Moving tasks respects dependencies and the single-writer rule. After failure or restart, inspect the task and workflow records. `/workflow resume ID` reuses the existing workflow, results, task IDs, and dependency chain; completed steps are not redispatched, and unrelated paused assignments remain paused. A paused workflow stays paused across app restarts. Pausing stops an active turn and preserves its partial result as an interrupted step for continuation. A partially completed failed assignment continues from its existing files and findings. Restart an interrupted discussion with `/discuss TOPIC` or a new direct message.
 
 `/workflow retry ID` deliberately starts a new workflow and may repeat completed edits; `/queue retry ID` creates a new standalone task. These retries differ from `/workflow resume ID`. Saved work starts paused after restart; `/queue resume` releases eligible queued tasks, while workflow resume releases only that workflow. A completed workflow means turns finished; inspect the review and summary to assess delivery.
 

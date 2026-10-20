@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { taskSignal, clarificationContext } from './questions.js';
+import { nameLabel } from './name-display.js';
 
 export const directMessages = member => member.messages.filter(message => message.channel !== 'group');
 
@@ -94,8 +95,8 @@ export function displayMessages(member, tasks = [], workflows = []) {
           return {
             ...message,
             text: `Proposed plan\n\n${plan.steps
-              .map((step, index) => `${index + 1}. ${step.member}: ${step.task}`)
-              .join('\n')}\n\nReviewer: ${plan.reviewer}`,
+              .map((step, index) => `${index + 1}. ${nameLabel(step.member)}: ${step.task}`)
+              .join('\n')}\n\nReviewer: ${nameLabel(plan.reviewer)}`,
           };
         } catch {
           return {

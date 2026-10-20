@@ -32,6 +32,7 @@ export class Workflows {
   constructor(crew) {
     this.crew = crew;
     for (const flow of crew.state.workflows) {
+      if (flow.status === 'paused') continue;
       if (!TERMINAL.has(flow.status)) {
         flow.status = 'interrupted';
         flow.error = 'App restarted. Inspect changes, then explicitly retry this workflow.';
@@ -143,6 +144,7 @@ export class Workflows {
   onStart(task) {
     if (!task.workflowId) return;
     const flow = this.get(task.workflowId);
+    if (flow.status === 'paused') return;
     flow.status =
       task.kind === 'plan'
         ? 'planning'
@@ -306,11 +308,14 @@ export class Workflows {
         this.crew.state.tasks
           .filter(turn => turn.workflowId === flow.id && turn.kind === 'work' && !turn.readOnly)
           .map(turn => this.crew.member(turn.member))
-          .find(member => member.writable && codexExecutionPolicy(member).approval === 'on-request');
+          .find(member => {
+            const policy = codexExecutionPolicy(member);
+            return member.writable && (policy.approval === 'on-request' || policy.sandbox === 'danger-full-access');
+          });
       if (
         executionWriter &&
         !target.executionDelegated &&
-        target.readOnly &&
+        (target.readOnly || codexExecutionPolicy(this.crew.member(target.member)).sandbox === 'read-only') &&
         !/approval.{0,40}(denied|rejected)/i.test(task.recoveryBlocker || '')
       ) {
         decision.action = 'repair';
@@ -516,10 +521,49 @@ export class Workflows {
     this.crew.notify(`Workflow ${id} ${status}: ${error}`);
   }
   cancel(id) {
+    const flow = this.get(id);
+    if (TERMINAL.has(flow.status)) throw new Error('Only an active workflow can be cancelled.');
     this.fail(id, 'Cancelled by user.', 'cancelled');
+    return flow;
+  }
+  pause(id) {
+    const flow = this.get(id);
+    if (TERMINAL.has(flow.status)) throw new Error('Only an active workflow can be paused.');
+    flow.status = 'paused';
+    flow.pausedAt = Date.now();
+    for (const task of this.crew.state.tasks.filter(task => task.workflowId === id && !TERMINAL.has(task.status))) {
+      if (task.status === 'running') {
+        task.pauseRequested = true;
+        this.crew.stop(task.member, task.conversationId);
+      }
+    }
+    this.crew.save();
+    this.crew.notify(`Workflow ${id} paused`);
+    return flow;
   }
   resume(id, instruction = '') {
     const flow = this.get(id);
+    if (flow.status === 'paused') {
+      const tasks = this.crew.state.tasks.filter(task => task.workflowId === id);
+      if (tasks.some(task => task.status === 'running'))
+        throw new Error('The active turn is still stopping. Try resuming again once it has stopped.');
+      const unfinished = tasks.filter(task => !['completed', 'failed', 'cancelled'].includes(task.status));
+      if (!unfinished.length) throw new Error('There is no unfinished work to resume.');
+      if (flow.workspace) this.crew.worktrees.verify(flow);
+      for (const task of unfinished) {
+        if (task.result && !task.schema) task.continuations = (task.continuations || 0) + 1;
+        task.status = task.question ? 'waiting' : 'queued';
+        delete task.pauseRequested;
+        delete task.error;
+        delete task.finishedAt;
+      }
+      flow.status = unfinished[0].kind === 'plan' ? 'planning' : 'working';
+      delete flow.pausedAt;
+      delete flow.error;
+      this.crew.save();
+      this.crew.queue.drain();
+      return flow;
+    }
     if (flow.status === 'completed') throw new Error('This workflow is complete. Describe the next change instead.');
     if (flow.status === 'failed') {
       const recovered = this.recovery(id);

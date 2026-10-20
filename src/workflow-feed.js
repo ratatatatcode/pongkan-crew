@@ -4,16 +4,25 @@ import { structuredOutput } from './structured-output.js';
 const label = name => name.charAt(0).toUpperCase() + name.slice(1);
 const renderedTasks = new WeakMap();
 
-function taskMarkdown(task, slot, text, width, folder) {
+function taskMarkdown(task, slot, text, width, crew) {
+  const folder = crew.folder;
+  const names = (crew.state.members || []).map(member => member.name);
+  const namesKey = JSON.stringify(names);
   let cache = renderedTasks.get(task);
   if (!cache) {
     cache = new Map();
     renderedTasks.set(task, cache);
   }
   const previous = cache.get(slot);
-  if (previous?.text === text && previous.width === width && previous.folder === folder) return previous.rows;
-  const rows = renderMarkdown(text, width, { folder });
-  cache.set(slot, { text, width, folder, rows });
+  if (
+    previous?.text === text &&
+    previous.width === width &&
+    previous.folder === folder &&
+    previous.namesKey === namesKey
+  )
+    return previous.rows;
+  const rows = renderMarkdown(text, width, { folder, names });
+  cache.set(slot, { text, width, folder, namesKey, rows });
   return rows;
 }
 
@@ -64,7 +73,7 @@ export function workflowFeed(
             '\n\nPrior Crew Chat (historical findings; use the latest user request to determine authorized work):\n',
           )[0]
           .split('\n\nResolved intent (must remain within the original request):')[0];
-        rows.push({ text: 'You', tone: 'user' }, ...taskMarkdown(task, 'goal', goal, width, crew.folder), {
+        rows.push({ text: 'You', tone: 'user' }, ...taskMarkdown(task, 'goal', goal, width, crew), {
           text: '',
           tone: 'body',
         });
@@ -87,7 +96,7 @@ export function workflowFeed(
       for (const correction of (task.steering || []).filter(entry => entry.appliedAt))
         rows.push(
           { text: `You · correction delivered to ${label(task.member)}`, tone: 'user' },
-          ...taskMarkdown(task, `correction-${correction.id}`, correction.text, width, crew.folder),
+          ...taskMarkdown(task, `correction-${correction.id}`, correction.text, width, crew),
           { text: '', tone: 'body' },
         );
       const rawVerification = task.kind === 'review' && task.schema && !task.verificationFormatted;
@@ -99,7 +108,7 @@ export function workflowFeed(
         )[0];
         rows.push(
           { text: label(task.member), tone: 'assistant' },
-          ...taskMarkdown(task, 'result', message.text, width, crew.folder),
+          ...taskMarkdown(task, 'result', message.text, width, crew),
           { text: '', tone: 'body' },
         );
       }
@@ -145,7 +154,7 @@ export function workflowFeed(
       { text: '', tone: 'body' },
     );
     const assignment = task.kind === 'plan' ? flow.text : task.text;
-    rows.push(...taskMarkdown(task, 'activity-assignment', assignment.slice(0, 300), width, crew.folder));
+    rows.push(...taskMarkdown(task, 'activity-assignment', assignment.slice(0, 300), width, crew));
     if (task.result) {
       rows.push(
         { text: '', tone: 'body' },
@@ -155,7 +164,7 @@ export function workflowFeed(
           'activity-result',
           task.kind === 'plan' ? task.result : task.result.slice(0, 800),
           width,
-          crew.folder,
+          crew,
         ),
       );
     }

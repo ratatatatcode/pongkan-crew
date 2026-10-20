@@ -4,6 +4,7 @@ import { ROLES, roleMember } from './roles.js';
 import { presetListRows } from './preset-display.js';
 import { directMessages } from './conversations.js';
 import { spacedRoleText } from './role-display.js';
+import { nameLabel } from './name-display.js';
 import { readModelCatalog, readModelDefaults, modelLabel, validateModelChoice, modelCatalogLines } from './models.js';
 import { steer } from './steering.js';
 import { PERSONALITIES } from './personality.js';
@@ -85,9 +86,10 @@ export const HELP = [
   '/queue cancel ID              Cancel queued or running task',
   '/queue move ID POSITION       Reorder queued work (1-based)',
   '/queue retry ID               Explicitly repeat a finished task',
-  '/workflow list                List coordinated workflows',
+  '/workflow list [STATUS]       List workflows (active, paused, or all)',
   '/workflow show ID             Show plan, steps and summary',
   '/workflow cancel ID           Cancel workflow and dependent steps',
+  '/workflow pause ID            Pause workflow after the active turn stops',
   '/workflow resume ID           Continue unfinished steps; keep completed work',
   '/workflow retry ID            Restart complete workflow; may repeat edits',
   '/recovery [WORKFLOW_ID]       Diagnose and repair unfinished work; renew bounded recovery',
@@ -417,7 +419,7 @@ export function execute(app, line, { submission = 'enter' } = {}) {
         p.title,
         '',
         `Lead: ${p.lead}`,
-        `Reviewer: ${p.reviewer}`,
+        `Reviewer: ${nameLabel(p.reviewer)}`,
         '',
         '',
         ...p.members.flatMap(m => [
@@ -923,19 +925,43 @@ export function execute(app, line, { submission = 'enter' } = {}) {
   } else if (command === '/workflow') {
     const [action, id] = parts;
     if (!action || action === 'list') {
+      const filter = action === 'list' ? id : null;
+      if (filter && !['active', 'paused', 'all'].includes(filter))
+        throw new Error('Use /workflow list [active|paused|all].');
       panel('WORKFLOWS', []);
       app.panel.getRows = width =>
-        crew.state.workflows.length
-          ? crew.state.workflows.flatMap(flow => {
-              const goal = (flow.requestGoal || flow.text).trim().split(/\r?\n/)[0];
-              const preview = renderMarkdown(goal, width, { folder: crew.folder }).slice(0, 2);
-              return [
-                { text: `${flow.id} · ${flow.status}`, tone: 'heading' },
-                ...preview,
-                { text: `/workflow show ${flow.id}`, tone: 'muted' },
-                { text: '', tone: 'body' },
-              ];
-            })
+        crew.state.workflows.filter(
+          flow =>
+            !filter ||
+            filter === 'all' ||
+            (filter === 'paused' ? flow.status === 'paused' : flow.status !== 'paused' && !TERMINAL.has(flow.status)),
+        ).length
+          ? crew.state.workflows
+              .filter(
+                flow =>
+                  !filter ||
+                  filter === 'all' ||
+                  (filter === 'paused'
+                    ? flow.status === 'paused'
+                    : flow.status !== 'paused' && !TERMINAL.has(flow.status)),
+              )
+              .flatMap(flow => {
+                const goal = (flow.requestGoal || flow.text).trim().split(/\r?\n/)[0];
+                const preview = renderMarkdown(goal, width, { folder: crew.folder }).slice(0, 2);
+                const steps = crew.state.tasks.filter(task => task.workflowId === flow.id);
+                const done = steps.filter(task => task.status === 'completed').length;
+                const current = steps.find(task => task.id === flow.currentTask);
+                return [
+                  { text: `${flow.id} · ${flow.status}`, tone: 'heading' },
+                  ...preview,
+                  {
+                    text: `Progress: ${done}/${steps.length} steps${current ? ` · current ${current.member} (${current.status})` : ''}`,
+                    tone: 'muted',
+                  },
+                  { text: `/workflow show ${flow.id}`, tone: 'muted' },
+                  { text: '', tone: 'body' },
+                ];
+              })
           : [{ text: 'No workflows. Use /task GOAL.', tone: 'body' }];
     } else if (action === 'show') {
       crew.workflows.get(id);
@@ -956,6 +982,15 @@ export function execute(app, line, { submission = 'enter' } = {}) {
           ...crew.state.tasks
             .filter(t => t.workflowId === id)
             .map(t => `${t.id} ${t.kind} -> ${t.member}: ${t.status}`),
+          ...crew.state.tasks
+            .filter(t => t.workflowId === id)
+            .flatMap(t => [
+              ...(crew.state.members.find(member => member.name === t.member)?.progress?.taskId === t.id
+                ? [`  Progress: ${crew.state.members.find(member => member.name === t.member).progress.action}`]
+                : []),
+              ...(t.result ? [`  Result: ${t.result}`] : []),
+              ...(t.error ? [`  Error: ${t.error}`] : []),
+            ]),
           '',
           'SUMMARY',
           flow.result || '(pending)',
@@ -979,7 +1014,11 @@ export function execute(app, line, { submission = 'enter' } = {}) {
         ];
       });
     } else if (action === 'cancel') crew.workflows.cancel(id);
-    else if (action === 'resume') {
+    else if (action === 'pause') {
+      if (parts.length !== 2) throw new Error('Use /workflow pause WORKFLOW_ID.');
+      crew.workflows.pause(id);
+      app.notice = `Workflow ${id} paused; any active turn will stop before it can resume.`;
+    } else if (action === 'resume') {
       if (parts.length !== 2) throw new Error('Use /workflow resume WORKFLOW_ID.');
       const flow = crew.workflows.resume(id);
       crew.queue.resumeScope(task => task.workflowId === flow.id);
@@ -991,7 +1030,7 @@ export function execute(app, line, { submission = 'enter' } = {}) {
       };
       if (result?.then) return result.then(show);
       show(result);
-    } else throw new Error('Use /workflow list|show|cancel|resume|retry.');
+    } else throw new Error('Use /workflow list [active|paused|all]|show|pause|cancel|resume|retry.');
   } else if (command === '/diff') {
     if (parts[0] === 'git' || (!parts[0] && !crew.state.lastDiff))
       return load(
@@ -1135,7 +1174,7 @@ export function execute(app, line, { submission = 'enter' } = {}) {
   } else if (command === '/status')
     panel('STATUS', () => [
       `Preset: ${crew.state.activePreset || 'default / customized'}`,
-      `Lead: ${crew.leadName} | Reviewer: ${crew.reviewerName}`,
+      `Lead: ${nameLabel(crew.leadName)} | Reviewer: ${nameLabel(crew.reviewerName)}`,
       `Questions: ${crew.state.questionsEnabled === false ? 'OFF' : 'ON'} | Waiting: ${crew.state.tasks.filter(t => t.status === 'waiting').length}`,
       `Dispatch: ${crew.queue.paused ? 'PAUSED' : 'RUNNING'}`,
       '',

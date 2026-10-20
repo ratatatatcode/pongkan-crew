@@ -166,6 +166,7 @@ export class TaskQueue {
         this.crew.save();
         continue;
       }
+      if (task.workflowId && this.crew.workflows.get(task.workflowId).status === 'paused') continue;
       if (task.dependsOn) {
         const prior = this.get(task.dependsOn);
         if (prior.status !== 'completed' && !(task.kind === 'direct' && TERMINAL.has(prior.status))) continue;
@@ -262,6 +263,10 @@ export class TaskQueue {
             }
           : result.diff;
       task.status = task.cancelRequested || result.status === 'cancelled' ? 'cancelled' : result.status;
+      if (task.pauseRequested && flow?.status === 'paused') {
+        task.status = 'interrupted';
+        task.error = 'Paused by user after the active turn stopped. Resume to continue this step.';
+      }
       if (result.error) task.error = result.error;
       if (
         task.status === 'completed' &&
@@ -297,13 +302,15 @@ export class TaskQueue {
             : 'Questions are off; task requested clarification instead of proceeding.';
       }
     } catch (error) {
-      task.status = 'failed';
+      const flow = task.workflowId ? this.crew.workflows.get(task.workflowId) : null;
+      task.status = task.pauseRequested && flow?.status === 'paused' ? 'interrupted' : 'failed';
       task.error = task.recoveryBlocker ? `${task.recoveryBlocker}\nRecovery failed: ${error.message}` : error.message;
     }
     task.finishedAt = Date.now();
     this.crew.discussions.finish(task);
     try {
-      this.crew.workflows.onFinish(task);
+      if (!(task.pauseRequested && task.workflowId && this.crew.workflows.get(task.workflowId).status === 'paused'))
+        this.crew.workflows.onFinish(task);
     } catch (error) {
       task.status = 'failed';
       task.error = task.recoveryBlocker ? `${task.recoveryBlocker}\nRecovery failed: ${error.message}` : error.message;
