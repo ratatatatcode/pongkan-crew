@@ -90,6 +90,7 @@ export const HELP = [
   '/workflow cancel ID           Cancel workflow and dependent steps',
   '/workflow resume ID           Continue unfinished steps; keep completed work',
   '/workflow retry ID            Restart complete workflow; may repeat edits',
+  '/recovery [WORKFLOW_ID]       Diagnose and repair unfinished work; renew bounded recovery',
   '',
   'CONVERSATION AND VIEWS',
   '/clear                        Clear local transcript; keep Codex session',
@@ -893,15 +894,41 @@ export function execute(app, line, { submission = 'enter' } = {}) {
     else if (action === 'move') crew.queue.move(id, Number(position));
     else if (action === 'retry') app.notice = `Queued retry ${crew.queue.retry(id).id}.`;
     else throw new Error('Use /queue list|show|pause|resume|cancel|move|retry.');
+  } else if (command === '/recovery') {
+    if (parts.length > 1) throw new Error('Use /recovery [WORKFLOW_ID].');
+    const flows = ['group', 'activity'].includes(app.view)
+      ? crew.discussions.associatedWorkflows()
+      : crew.state.workflows.filter(
+          flow =>
+            !flow.sourceConversationId &&
+            !flow.sourceDiscussionId &&
+            (flow.conversations?.[app.selected] || null) === (crew.state.activeConversations[app.selected] || null),
+        );
+    const id = parts[0] || flows.findLast(flow => flow.status !== 'completed')?.id;
+    if (!id)
+      throw new Error('No unfinished workflow in this conversation. Use /workflow list, then /recovery WORKFLOW_ID.');
+    const flow = crew.workflows.recovery(id);
+    crew.queue.resumeScope(task => task.workflowId === flow.id);
+    app.panel = null;
+    app.notice = `Recovery started for ${flow.id}; completed work preserved, up to two recovery attempts. Check /activity for progress.`;
   } else if (command === '/workflow') {
     const [action, id] = parts;
-    if (!action || action === 'list')
-      panel('WORKFLOWS', () =>
+    if (!action || action === 'list') {
+      panel('WORKFLOWS', []);
+      app.panel.getRows = width =>
         crew.state.workflows.length
-          ? crew.state.workflows.map(f => `${f.id} ${f.status}: ${f.text}`)
-          : ['No workflows. Use /task GOAL.'],
-      );
-    else if (action === 'show') {
+          ? crew.state.workflows.flatMap(flow => {
+              const goal = (flow.requestGoal || flow.text).trim().split(/\r?\n/)[0];
+              const preview = renderMarkdown(goal, width, { folder: crew.folder }).slice(0, 2);
+              return [
+                { text: `${flow.id} · ${flow.status}`, tone: 'heading' },
+                ...preview,
+                { text: `/workflow show ${flow.id}`, tone: 'muted' },
+                { text: '', tone: 'body' },
+              ];
+            })
+          : [{ text: 'No workflows. Use /task GOAL.', tone: 'body' }];
+    } else if (action === 'show') {
       crew.workflows.get(id);
       markdownPanel(`WORKFLOW ${id}`, () => {
         const flow = crew.workflows.get(id);

@@ -250,6 +250,11 @@ export function validateState(state) {
     )
   )
     invalid();
+  for (const archive of state.archives) {
+    if (!Array.isArray(archive?.members)) continue;
+    for (const member of archive.members)
+      if (member && member.codexPermissions === undefined) member.codexPermissions = 'approve';
+  }
   if (state.archives.some(a => !a || !ID.test(a.id) || typeof a.reason !== 'string' || !membersValid(a.members)))
     invalid();
   if (
@@ -258,6 +263,11 @@ export function validateState(state) {
   )
     invalid();
   for (const flow of state.workflows) {
+    if (
+      flow.recoveryAttempts !== undefined &&
+      (!Number.isInteger(flow.recoveryAttempts) || flow.recoveryAttempts < 0 || flow.recoveryAttempts > 2)
+    )
+      invalid();
     if (flow.sourceInputId != null && !ID.test(flow.sourceInputId)) invalid();
     if (flow.requiresWrite !== undefined && typeof flow.requiresWrite !== 'boolean') invalid();
     if (flow.requestGoal !== undefined && typeof flow.requestGoal !== 'string') invalid();
@@ -305,6 +315,26 @@ export function validateState(state) {
   )
     invalid();
   for (const task of state.tasks) {
+    if (
+      ['recoveryFor', 'repairFor'].some(
+        field =>
+          task[field] !== undefined &&
+          (!ids.has(task[field]) ||
+            task[field] === task.id ||
+            state.tasks.find(other => other.id === task[field])?.workflowId !== task.workflowId),
+      )
+    )
+      invalid();
+    if (task.recoveryBlocker !== undefined && typeof task.recoveryBlocker !== 'string') invalid();
+    if (task.recoveryFor && (task.kind !== 'coordination' || task.readOnly !== true || !task.schema)) invalid();
+    if (
+      task.repairFor &&
+      !(
+        (task.kind === 'coordination' && task.readOnly === true) ||
+        (task.kind === 'revision' && task.readOnly === false)
+      )
+    )
+      invalid();
     if (task.sourceInputId != null && !ID.test(task.sourceInputId)) invalid();
     if (
       task.inspections !== undefined &&

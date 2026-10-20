@@ -226,7 +226,11 @@ export function screen(
     } else if (discussion) {
       const failed = tasks.find(t => t.error);
       if (failed)
-        content.push(...wrap(`${failed.member}: ${failed.error}`, readingWidth).map(text => row(text, 'system')));
+        content.push(
+          ...wrap(`${failed.member}: ${failed.error}`, readingWidth).map(text => row(text, 'system')),
+          row(''),
+          row(''),
+        );
       if (discussion.status === 'interrupted')
         content.push(row('App restarted. Start again with /discuss TOPIC.', 'muted'));
     }

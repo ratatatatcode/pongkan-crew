@@ -23,6 +23,15 @@ test('task and workflow detail panels render Markdown history and results at nar
   task.result = body;
   const flow = crew.workflows.start(body);
   flow.result = body;
+  flow.text = '**Fix database isolation**\n\nPrior Crew Chat (historical findings):\n' + body.repeat(100);
+  flow.requestGoal = flow.text;
+  execute(app, '/workflow list');
+  const list = screen(crew, app.selected, '', '', 120, 40, 0, app.panel, { view: 'group' });
+  assert.match(list, new RegExp(flow.id));
+  assert.match(list, /Fix database isolation/);
+  assert.doesNotMatch(list, /\*\*|historical findings|Receiving/);
+  assert.ok(app.panel.getRows(80).length < 10);
+  flow.text = body;
   for (const command of [`/queue show ${task.id}`, `/workflow show ${flow.id}`]) {
     execute(app, command);
     const before = JSON.stringify(crew.state);

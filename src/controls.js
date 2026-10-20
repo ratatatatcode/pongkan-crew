@@ -43,6 +43,7 @@ const COMMANDS = [
   '/handoff',
   '/share',
   '/retry',
+  '/recovery',
   '/stop',
   '/clear',
   '/new',

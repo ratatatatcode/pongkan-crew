@@ -285,6 +285,11 @@ export class TaskQueue {
         return;
       }
       if (signal) {
+        if (signal.kind === 'BLOCKED' && this.crew.workflows.recover(task, signal.text)) {
+          this.crew.save();
+          this.drain();
+          return;
+        }
         task.status = 'failed';
         task.error =
           signal.kind === 'BLOCKED'
@@ -293,7 +298,7 @@ export class TaskQueue {
       }
     } catch (error) {
       task.status = 'failed';
-      task.error = error.message;
+      task.error = task.recoveryBlocker ? `${task.recoveryBlocker}\nRecovery failed: ${error.message}` : error.message;
     }
     task.finishedAt = Date.now();
     this.crew.discussions.finish(task);
@@ -301,8 +306,8 @@ export class TaskQueue {
       this.crew.workflows.onFinish(task);
     } catch (error) {
       task.status = 'failed';
-      task.error = error.message;
-      this.crew.workflows.fail(task.workflowId, error.message);
+      task.error = task.recoveryBlocker ? `${task.recoveryBlocker}\nRecovery failed: ${error.message}` : error.message;
+      this.crew.workflows.fail(task.workflowId, task.error);
     }
     this.crew.save();
     this.crew.notify(`Task ${task.id}: ${task.status}${task.error ? ` — ${task.error}` : ''}`);
