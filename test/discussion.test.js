@@ -10,8 +10,12 @@ import { validateState } from '../src/state.js';
 
 function setup(t, runner) {
   const folder = mkdtempSync(join(tmpdir(), 'pongkan-discuss-'));
-  t.after(() => rmSync(folder, { recursive: true, force: true }));
-  return new Crew(t, folder, { runner });
+  const crew = new Crew(t, folder, { runner });
+  t.after(async () => {
+    await crew.close();
+    rmSync(folder, { recursive: true, force: true });
+  });
+  return crew;
 }
 
 test('saved discussion lineage and workflow display fields reject malformed values', t => {

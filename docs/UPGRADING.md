@@ -16,6 +16,8 @@ node .\src\cli.js --folder ..\todo-app
 
 The app uses a folder lock and atomic state replacement. Do not edit state while it is running. History recovery restores conversations and configuration, not project file contents; keep project version control and backups separately.
 
+After updating recovery code, restart the app to load it. Existing execution records remain readable, including older error-category fields, but those fields no longer select recovery actions. New direct-task recovery decisions and their evidence are saved with the original task. Saved work remains paused on restart, and cancelled work is not resurrected. During active execution, direct turns and workflows handle failed turns automatically through AI assessment while retaining their selected permission modes.
+
 Ordinary sends now bypass intent interpretation entirely. Crew Chat goes to the designated lead; `@NAME` goes to the named teammate; private Chat goes to the selected teammate. Direct Developer turns retain write access. No automatic plan, revision, review, or summary is scheduled. Explicit workflow commands remain available. Restart after updating source; existing saved tasks, workflows, and messages remain intact. Old router input records remain readable but new sends use durable task and conversation records.
 
 ## Default coordinator migration

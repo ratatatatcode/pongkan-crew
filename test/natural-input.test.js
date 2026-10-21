@@ -302,7 +302,7 @@ test('plain Enter does not wake paused work from unrelated conversations', t => 
   assert.notEqual(other.dispatchPaused, true);
 });
 
-test('workflow resume executes only unfinished turns after a real runner failure', async t => {
+test('workflow automatically resumes only unfinished turns after a real runner failure', async t => {
   const folder = mkdtempSync(join(tmpdir(), 'pongkan-natural-recovery-'));
   const calls = [];
   let crew,
@@ -343,13 +343,12 @@ test('workflow resume executes only unfinished turns after a real runner failure
   execute(app, 'Build staff badges');
   const flow = crew.state.workflows[0];
   await crew.workflows.settled(flow.id);
-  assert.equal(flow.status, 'failed');
   const completed = crew.state.tasks.filter(task => task.workflowId === flow.id && task.status === 'completed');
-  execute(app, 'Okay, proceed.');
-  await crew.workflows.settled(flow.id);
   assert.equal(flow.status, 'completed');
   assert.equal(crew.state.workflows.length, 1);
-  assert.ok(completed.every(task => calls.filter(id => id === task.id).length === 1));
+  assert.ok(
+    completed.filter(task => task.kind !== 'work').every(task => calls.filter(id => id === task.id).length === 1),
+  );
   assert.equal(calls.filter(id => id === crew.state.tasks.find(task => task.kind === 'work').id).length, 2);
 });
 

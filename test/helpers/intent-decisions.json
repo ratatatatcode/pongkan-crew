@@ -241,12 +241,9 @@
       "action": "execute"
     }
   ],
-  "workflow resume executes only unfinished turns after a real runner failure": [
+  "workflow automatically resumes only unfinished turns after a real runner failure": [
     {
       "action": "execute"
-    },
-    {
-      "action": "resume"
     }
   ],
   "plain messages in personal chat start dispatch without resuming another chat": [

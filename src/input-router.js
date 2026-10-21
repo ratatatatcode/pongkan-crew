@@ -470,7 +470,7 @@ export function inputStatus(crew, input) {
   const flow = crew.state.workflows.find(flow => flow.id === input.workflowId);
   if (flow) {
     if (flow.status === 'failed')
-      return `Blocked: ${flow.error || 'Execution failed; inspect /activity for the failed command.'} Recovery attempts: ${flow.recoveryAttempts || 0}/2. Continue to start a fresh bounded recovery, or use /recovery ${flow.id}.`;
+      return `Incomplete: ${flow.error || 'Automatic recovery could not verify the outcome; inspect /activity for its findings.'} Automatic recovery attempts: ${flow.recoveryAttempts || 0}.`;
     const waiting = crew.state.tasks.find(task => task.workflowId === flow.id && task.status === 'waiting');
     return waiting
       ? `blocked: ${waiting.member}: ${waiting.question}`
