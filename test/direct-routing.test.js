@@ -60,19 +60,37 @@ test('explicit task command still creates a workflow with independent review', a
 });
 
 for (const view of ['group', 'activity']) {
-  test(`${view} plain messages reach the lead directly without starting a workflow`, async t => {
+  test(`${view} execution requests start a workflow from the saved proposal`, async t => {
     const app = setup(t);
     app.view = view;
-    await execute(app, "Proceed with what you've discussed.");
-    assert.equal(app.crew.state.tasks.length, 1);
-    const task = app.crew.state.tasks[0];
-    assert.equal(task.member, app.crew.leadName);
-    assert.equal(task.readOnly, !app.crew.member(app.crew.leadName).writable);
-    assert.equal(task.kind, 'direct');
-    assert.ok(task.discussionId);
-    assert.equal(app.view, 'group');
-    assert.equal(app.crew.state.workflows.length, 0);
-    assert.equal(app.crew.state.inputs.length, 0);
+    const discussion = app.crew.discussions.newConversation();
+    discussion.messages.push({
+      role: 'assistant',
+      speaker: app.crew.leadName,
+      text: 'Create three vertical clips with subtitles.',
+    });
+    app.crew.inputs.resolve = (input, context) => {
+      assert.match(context.messages.at(-1).text, /three vertical clips/);
+      assert.equal(input.text, 'Assign it to whom can access and do the final edit.');
+      return {
+        action: 'execute',
+        target: 'developer',
+        taskId: null,
+        workflowId: null,
+        goal: 'Create the proposed clips with a writable editor.',
+        question: '',
+        requiresWrite: true,
+        teamDiscussion: false,
+      };
+    };
+    await execute(app, 'Assign it to whom can access and do the final edit.');
+    const flow = app.crew.state.workflows[0];
+    assert.ok(flow, 'The request must start work rather than another lead reply');
+    assert.equal(flow.sourceDiscussionId, discussion.id);
+    assert.equal(flow.requiresWrite, true);
+    assert.match(flow.text, /three vertical clips/);
+    assert.equal(app.crew.state.tasks[0].kind, 'plan');
+    assert.equal(app.crew.state.inputs[0].status, 'dispatched');
   });
 }
 

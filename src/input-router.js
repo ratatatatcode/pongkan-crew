@@ -143,6 +143,9 @@ export class InputRouter {
     const shared = !!options.target || app.view !== 'chat';
     const member = options.target || (shared ? crew.leadName : app.selected || crew.leadName);
     crew.member(member);
+    // Shared requests can authorize work across the roster, even before a
+    // workflow exists. A direct lead reply cannot perform that coordination.
+    if (shared && !options.target) return this.submitInterpreted(app, text, options);
     const conversationId = shared
       ? crew.state.activeGroupConversation || null
       : crew.state.activeConversations[member] || null;
