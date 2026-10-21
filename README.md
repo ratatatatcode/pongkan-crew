@@ -134,6 +134,19 @@ Use `/crew-task` after the discussion finishes to execute with its shared findin
 
 GitHub commands require an authenticated GitHub CLI (`gh`). They do not automatically commit, push, or open PRs. Isolated workflows start from committed `HEAD` and retain their branches and worktrees for review.
 
+### Video clipping crew
+
+Use `/preset show clipper` to preview or `/preset apply clipper` to select the Facebook and YouTube video crew. Video-producer coordinates Footage-analyst, Video-editor, Captioner, Copywriter, and a read-only Video-reviewer.
+
+Place your video in the project folder and supply its path. For example:
+
+```text
+/preset apply clipper
+/task Review "media/interview.mp4", pick three self-contained highlights, edit vertical clips for YouTube Shorts and Facebook Reels, add accurate English subtitles, and draft platform-specific titles, post captions, and descriptions. Save exports and subtitle files under "output/interview/" and have Video-reviewer check them. Do not publish.
+```
+
+This preset supplies specialist instructions, not an upload interface or bundled video tools. Actual inspection, transcription, and rendering depend on tools available to Codex in your environment, such as FFmpeg and a transcription tool. The crew checks availability and reports blockers or unrendered edit plans when production is unavailable. Source files stay intact; publishing requires an explicit request and available account integration.
+
 ## Keyboard controls
 
 Rotating tips appear below the command/status line while the CLI is open.
