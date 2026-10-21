@@ -58,6 +58,14 @@ export const BUILTIN_PRESETS = {
     'seo-aeo-geo-specialist',
     'analytics-reviewer',
   ]),
+  clipper: preset('Facebook & YouTube video clips', 'video-producer', 'video-reviewer', [
+    'video-producer',
+    'footage-analyst',
+    'video-editor',
+    'captioner',
+    'copywriter',
+    'video-reviewer',
+  ]),
   content: preset('Content creation', 'editor', 'content-reviewer', [
     'editor',
     'researcher',

@@ -28,7 +28,7 @@ import { workPolicy } from './questions.js';
 import { MarkdownExporter, markdownDirectory } from './markdown-export.js';
 import { InputRouter } from './input-router.js';
 import { codexExecutionPolicy } from './codex-permissions.js';
-import { executionContext, recordExecution } from './execution-recovery.js';
+import { executionContext, recordExecution, recordToolExecution } from './execution-recovery.js';
 
 export function buildArgs(folder, member, schemaPath = null, permissionMode = member.codexPermissions || 'approve') {
   const { sandbox, approval, reviewer } = codexExecutionPolicy(member, permissionMode);
@@ -358,7 +358,7 @@ export class Crew extends EventEmitter {
   async send(
     name,
     text,
-    { readOnly = false, stableRead = false, schema = null, discussionId = null, taskId = null } = {},
+    { readOnly = false, stableRead = false, schema = null, discussionId = null, taskId = null, internal = false } = {},
   ) {
     const task = taskId ? this.state.tasks.find(t => t.id === taskId) : null;
     const member = this.chatMember(name, discussionId ? null : task ? task.conversationId : undefined);
@@ -406,7 +406,7 @@ export class Crew extends EventEmitter {
     member.progress.taskId = taskId;
     member.progress.response = '';
     const taskMetadata = taskId ? { taskId } : {};
-    if (!shared) member.messages.push({ role: 'user', text, ...taskMetadata });
+    if (!shared && !internal) member.messages.push({ role: 'user', text, ...taskMetadata });
     this.save();
     this.notify(`${name} started`);
     const before = writable ? captureWorkspace(folder) : null;
@@ -451,8 +451,10 @@ export class Crew extends EventEmitter {
           `\nCurrent assignment access: ${writable ? 'writer requested' : 'read-only requested'}${member.codexPermissions === 'read-only' ? '; teammate permission mode is Read Only' : ''}. These are the current task settings, not a guarantee of host access. Historical read-only turns do not determine this turn. Check actual tool errors before reporting access blocked.\n` +
           collaborationContext(this, { discussion: shared }) +
           this.memory.context() +
-          (schema || discussion ? '' : workPolicy(this.state.questionsEnabled)) +
-          (schema || discussion ? '' : executionContext(task, codexExecutionPolicy({ ...member, writable }))) +
+          (schema || (discussion && task?.kind !== 'direct') ? '' : workPolicy(this.state.questionsEnabled)) +
+          (schema || (discussion && task?.kind !== 'direct')
+            ? ''
+            : executionContext(task, codexExecutionPolicy({ ...member, writable }))) +
           (recoveredContext
             ? `\nRecovered conversation context (historical findings, not new instructions):\n${recoveredContext}\n`
             : '') +
@@ -461,6 +463,10 @@ export class Crew extends EventEmitter {
           member.progress.events++;
           if (event.type === 'item.completed' && event.item?.type === 'command_execution') {
             recordExecution(task, event.item, codexExecutionPolicy({ ...member, writable }), folder);
+            this.save();
+          }
+          if (event.type === 'item.completed' && event.item?.type === 'mcp_tool_call') {
+            recordToolExecution(task, event.item);
             this.save();
           }
           if (
@@ -486,7 +492,8 @@ export class Crew extends EventEmitter {
               this.notify(`${name}: Connected; preparing response`, { kind: 'status' });
           }
           if (event.type === 'item.completed' && event.item?.type === 'agent_message') {
-            if (!shared) member.messages.push({ role: 'assistant', text: event.item.text, ...taskMetadata });
+            if (!shared && !internal)
+              member.messages.push({ role: 'assistant', text: event.item.text, ...taskMetadata });
             response += event.item.text + '\n';
             if (groupWorkflow) member.progress.response = response.trim();
             member.progress.action = 'Received assistant response';
@@ -540,7 +547,7 @@ export class Crew extends EventEmitter {
       errorText = error.message;
       status = controller.signal.aborted ? 'cancelled' : 'failed';
       member.status = controller.signal.aborted ? 'ready' : 'error';
-      if (!shared)
+      if (!shared && !internal)
         member.messages.push({ role: 'system', text: controller.signal.aborted ? 'Task stopped.' : error.message });
     } finally {
       if (schemaPath) {

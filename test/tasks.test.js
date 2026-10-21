@@ -144,7 +144,8 @@ test('invalid AI plans cannot dispatch workers', async t => {
   const workflow = crew.workflows.start('Build');
   await crew.workflows.settled(workflow.id);
   assert.equal(workflow.status, 'failed');
-  assert.equal(calls, 1);
+  assert.equal(calls, 3);
+  assert.equal(crew.state.tasks.filter(task => task.kind !== 'plan').length, 0);
   assert.throws(() => validatePlan({ steps: [], reviewer: 'developer' }, crew.state.members), /plan/i);
 });
 test('progress records commands, changed files and task failures', async t => {
@@ -178,7 +179,7 @@ test('review tasks wait for a stable workspace and block writers during review',
   await crew.queue.settled(next.id);
 });
 
-test('failed workflow step cancels all dependent work and exposes the error', async t => {
+test('failed workflow and unavailable recovery coordinator stop after bounded retries and expose the error', async t => {
   let calls = 0;
   const crew = setup(t, async (args, prompt, event) => {
     calls++;
@@ -190,7 +191,7 @@ test('failed workflow step cancels all dependent work and exposes the error', as
   await crew.workflows.settled(workflow.id);
   assert.equal(workflow.status, 'failed');
   assert.match(workflow.error, /Build failed/);
-  assert.equal(calls, 2);
+  assert.equal(calls, 5);
   assert.ok(crew.state.tasks.filter(t => ['review', 'summary'].includes(t.kind)).every(t => t.status === 'cancelled'));
 });
 

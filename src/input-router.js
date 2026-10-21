@@ -143,6 +143,9 @@ export class InputRouter {
     const shared = !!options.target || app.view !== 'chat';
     const member = options.target || (shared ? crew.leadName : app.selected || crew.leadName);
     crew.member(member);
+    // Shared requests can authorize work across the roster, even before a
+    // workflow exists. A direct lead reply cannot perform that coordination.
+    if (shared && !options.target) return this.submitInterpreted(app, text, options);
     const conversationId = shared
       ? crew.state.activeGroupConversation || null
       : crew.state.activeConversations[member] || null;
@@ -467,7 +470,7 @@ export function inputStatus(crew, input) {
   const flow = crew.state.workflows.find(flow => flow.id === input.workflowId);
   if (flow) {
     if (flow.status === 'failed')
-      return `Blocked: ${flow.error || 'Execution failed; inspect /activity for the failed command.'} Recovery attempts: ${flow.recoveryAttempts || 0}/2. Continue to start a fresh bounded recovery, or use /recovery ${flow.id}.`;
+      return `Incomplete: ${flow.error || 'Automatic recovery could not verify the outcome; inspect /activity for its findings.'} Automatic recovery attempts: ${flow.recoveryAttempts || 0}.`;
     const waiting = crew.state.tasks.find(task => task.workflowId === flow.id && task.status === 'waiting');
     return waiting
       ? `blocked: ${waiting.member}: ${waiting.question}`

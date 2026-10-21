@@ -113,7 +113,7 @@ const COMMANDS = [
   '/roles list',
   '/roles show',
 ];
-export function completions(input, names, presetNames = ['default', 'web', 'mobile', 'social', 'content']) {
+export function completions(input, names, presetNames = ['default', 'web', 'mobile', 'social', 'clipper', 'content']) {
   if (input.startsWith('@')) return names.filter(n => n.startsWith(input.slice(1))).map(n => `@${n}`);
   const role = input.match(/^(\/roles show|\/crew (?:add|role) [a-z][a-z0-9-]* --role)\s+(\S*)$/);
   if (role)

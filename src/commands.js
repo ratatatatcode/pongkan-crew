@@ -921,7 +921,7 @@ export function execute(app, line, { submission = 'enter' } = {}) {
     const flow = crew.workflows.recovery(id);
     crew.queue.resumeScope(task => task.workflowId === flow.id);
     app.panel = null;
-    app.notice = `Recovery started for ${flow.id}; completed work preserved, up to two recovery attempts. Check /activity for progress.`;
+    app.notice = `Recovery started for ${flow.id}; completed work preserved. Investigation, repair and verification continue automatically within existing permissions. Check /activity for progress.`;
   } else if (command === '/workflow') {
     const [action, id] = parts;
     if (!action || action === 'list') {
@@ -998,17 +998,17 @@ export function execute(app, line, { submission = 'enter' } = {}) {
           'ERROR',
           flow.error || '(none)',
           '',
-          'EXECUTION ACCESS HISTORY',
+          'EXECUTION EVIDENCE',
           ...crew.state.tasks
             .filter(t => t.workflowId === id)
             .flatMap(t => {
               const attempts = t.executionAttempts || [];
-              if (!attempts.some(attempt => attempt.accessFailure)) return [];
+              if (!attempts.length) return [];
               return attempts.map(
                 attempt =>
                   `${t.member} (${t.id}): ${attempt.command}\n` +
                   `Context: ${attempt.cwd}; ${attempt.policy?.sandbox || 'unknown'}; approval ${attempt.policy?.approval || 'unknown'}\n` +
-                  `Exit: ${attempt.exitCode ?? 'unknown'}${attempt.accessFailure ? `\n${attempt.accessFailure}` : ''}`,
+                  `Exit: ${attempt.exitCode ?? 'unknown'}\n${attempt.output || attempt.accessFailure || '(no output)'}`,
               );
             }),
         ];

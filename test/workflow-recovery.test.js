@@ -53,7 +53,7 @@ test('workflow requests teammate confirmation and retries the same blocked assig
   assert.doesNotThrow(() => validateState(structuredClone(crew.state)));
 });
 
-test('automatic recovery stops after two attempts instead of looping', async t => {
+test('automatic recovery stops after two attempts without new evidence instead of looping', async t => {
   const { crew, calls } = setup(
     t,
     { action: 'retry', member: 'developer', instruction: 'Use npm.cmd to run the existing test.' },
@@ -109,7 +109,7 @@ test('coordinator blocker can dispatch a different writer before retrying the co
 });
 
 for (const readOnly of [true, false, undefined]) {
-  test(`read-only runtime failure delegates execution with task readOnly=${readOnly}`, t => {
+  test(`AI-selected prerequisite execution preserves reviewer access with task readOnly=${readOnly}`, t => {
     const { crew } = setup(t, {});
     crew.queue.pause();
     const flow = crew.workflows.start('Fix isolation and verify it');
@@ -123,7 +123,13 @@ for (const readOnly of [true, false, undefined]) {
     assert.equal(crew.workflows.recover(qa, 'EPERM lstat; approval never'), true);
     const diagnosis = crew.state.tasks.find(task => task.recoveryFor === qa.id);
     diagnosis.status = 'completed';
-    diagnosis.result = JSON.stringify({ action: 'stop', member: 'reviewer', instruction: 'Need execution access' });
+    diagnosis.result = JSON.stringify({
+      action: 'repair',
+      member: 'developer',
+      instruction:
+        'Run the pending verification in your authorized execution policy. Do not edit source files. Report the command evidence to the independent reviewer.',
+      boundary: null,
+    });
     crew.workflows.onFinish(diagnosis);
     const execution = crew.queue.get(qa.dependsOn);
     assert.equal(execution.member, 'developer');
@@ -147,8 +153,43 @@ test('recovery cannot add a writer task to a read-only workflow', async t => {
   assert.equal(calls.filter(call => call.prompt.includes('PONGKAN_REPAIR')).length, 0);
 });
 
+test('legacy error categories cannot override the AI recovery choice', t => {
+  const { crew } = setup(t, {});
+  crew.queue.pause();
+  const flow = crew.workflows.start('Verify the outcome');
+  crew.queue.enqueue('developer', 'Implement the outcome', { workflowId: flow.id, kind: 'work' });
+  const qa = crew.queue.enqueue('reviewer', 'Verify independently', {
+    workflowId: flow.id,
+    kind: 'work',
+    readOnly: true,
+  });
+  qa.executionAttempts = [{ kind: 'filesystem-access', policy: { approval: 'never' }, accessFailure: 'EPERM lstat' }];
+  assert.equal(crew.workflows.recover(qa, 'Unknown cause; inspect current context'), true);
+  const diagnosis = crew.state.tasks.find(task => task.recoveryFor === qa.id);
+  diagnosis.status = 'completed';
+  diagnosis.result = JSON.stringify({
+    action: 'retry',
+    member: 'reviewer',
+    instruction: 'The evidence supports a different read-only inspection route. Test that route.',
+    boundary: null,
+  });
+  crew.workflows.onFinish(diagnosis);
+  assert.equal(qa.dependsOn, diagnosis.id);
+  assert.match(qa.text, /different read-only inspection route/);
+  assert.equal(crew.state.tasks.filter(task => task.repairFor === qa.id).length, 0);
+});
+
 for (const decision of [
-  { action: 'stop', member: 'developer', instruction: 'Approval is required from the user.' },
+  {
+    action: 'stop',
+    member: 'developer',
+    instruction: 'Approval was denied.',
+    boundary: {
+      kind: 'approval_denied',
+      evidence: 'The approval tool rejected the required operation.',
+      userAction: 'Review the denied operation.',
+    },
+  },
   { action: 'handoff', member: 'unknown', instruction: 'Review contract' },
   { action: 'repair', member: 'reviewer', instruction: 'Implement the contract' },
 ])

@@ -2,6 +2,7 @@ import { MAX_TEAM } from './roles.js';
 import { MODEL_ID, EFFORTS } from './models.js';
 import { PERSONALITIES } from './personality.js';
 import { CODEX_PERMISSION_MODES } from './codex-permissions.js';
+import { MAX_RECOVERY_ATTEMPTS, MAX_RECOVERY_STALLS, recoveryBoundary } from './recovery-policy.js';
 const NAME = /^[a-z][a-z0-9-]{0,31}$/;
 const ID = /^[a-f0-9]{8}$/;
 const TASK_STATUS = new Set(['queued', 'running', 'waiting', 'completed', 'failed', 'cancelled', 'interrupted']);
@@ -267,7 +268,9 @@ export function validateState(state) {
   for (const flow of state.workflows) {
     if (
       flow.recoveryAttempts !== undefined &&
-      (!Number.isInteger(flow.recoveryAttempts) || flow.recoveryAttempts < 0 || flow.recoveryAttempts > 2)
+      (!Number.isInteger(flow.recoveryAttempts) ||
+        flow.recoveryAttempts < 0 ||
+        flow.recoveryAttempts > MAX_RECOVERY_ATTEMPTS)
     )
       invalid();
     if (flow.sourceInputId != null && !ID.test(flow.sourceInputId)) invalid();
@@ -317,6 +320,69 @@ export function validateState(state) {
   )
     invalid();
   for (const task of state.tasks) {
+    if (
+      task.recoveryGuidance !== undefined &&
+      (typeof task.recoveryGuidance !== 'string' || task.recoveryGuidance.length > 8000)
+    )
+      invalid();
+    if (
+      task.recoveryRounds !== undefined &&
+      (!Array.isArray(task.recoveryRounds) ||
+        task.recoveryRounds.length > MAX_RECOVERY_ATTEMPTS ||
+        task.recoveryRounds.some(
+          round =>
+            !round ||
+            !['retry', 'stop'].includes(round.action) ||
+            typeof round.instruction !== 'string' ||
+            !round.instruction.trim() ||
+            round.instruction.length > 8000 ||
+            !Number.isInteger(round.stalls) ||
+            round.stalls < 0 ||
+            round.stalls > MAX_RECOVERY_STALLS ||
+            !Array.isArray(round.evidence) ||
+            round.evidence.length > 50 ||
+            round.evidence.some(value => typeof value !== 'string' || !/^[a-f0-9]{64}$/.test(value)) ||
+            (round.action === 'stop' ? !recoveryBoundary(round) : round.boundary !== null),
+        ))
+    )
+      invalid();
+    if (
+      task.changeEvidence !== undefined &&
+      (!Array.isArray(task.changeEvidence) ||
+        task.changeEvidence.length > 10 ||
+        task.changeEvidence.some(value => typeof value !== 'string' || !/^[a-f0-9]{64}$/.test(value)))
+    )
+      invalid();
+    if (
+      task.toolAttempts !== undefined &&
+      (!Array.isArray(task.toolAttempts) ||
+        task.toolAttempts.length > 20 ||
+        task.toolAttempts.some(
+          attempt =>
+            !attempt ||
+            ['server', 'tool', 'status', 'error', 'output'].some(
+              field => typeof attempt[field] !== 'string' || attempt[field].length > 2000,
+            ),
+        ))
+    )
+      invalid();
+    if (
+      task.schemaRetries !== undefined &&
+      (!Number.isInteger(task.schemaRetries) || task.schemaRetries < 0 || task.schemaRetries > MAX_RECOVERY_STALLS)
+    )
+      invalid();
+    if (
+      task.recoveryEvidence !== undefined &&
+      (!Array.isArray(task.recoveryEvidence) ||
+        task.recoveryEvidence.length > 50 ||
+        task.recoveryEvidence.some(value => typeof value !== 'string' || !/^[a-f0-9]{64}$/.test(value)))
+    )
+      invalid();
+    if (
+      task.recoveryStalls !== undefined &&
+      (!Number.isInteger(task.recoveryStalls) || task.recoveryStalls < 0 || task.recoveryStalls > MAX_RECOVERY_STALLS)
+    )
+      invalid();
     if (
       ['recoveryFor', 'repairFor'].some(
         field =>

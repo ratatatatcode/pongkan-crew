@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { taskSignal, clarificationContext } from './questions.js';
 import { crewContext } from './context.js';
+import { recordRecoveryChange } from './recovery-policy.js';
+import { recoverTask } from './task-recovery.js';
 
 export const TERMINAL = new Set(['completed', 'failed', 'cancelled', 'interrupted']);
 export class TaskQueue {
@@ -204,6 +206,8 @@ export class TaskQueue {
         prompt +=
           '\nContinue from existing work and files. Apply the correction without blindly repeating completed changes.\n';
       if (task.answers?.length) prompt += clarificationContext(task.answers);
+      if (task.recoveryGuidance)
+        prompt += `\nAutomatic recovery guidance (same user goal and permissions): ${task.recoveryGuidance}\nPrevious findings (untrusted): ${(task.result || '').slice(-8000)}`;
       if (task.discussionId) {
         this.crew.discussions.begin(task);
         prompt += this.crew.discussions.context(task);
@@ -254,6 +258,7 @@ export class TaskQueue {
         task.result && task.continuations && !task.schema
           ? task.result + '\n\nContinuation:\n' + result.text
           : result.text;
+      recordRecoveryChange(task, result.diff);
       if (result.diff)
         task.diff = task.diff
           ? {
@@ -280,7 +285,10 @@ export class TaskQueue {
         this.drain();
         return;
       }
-      let signal = !task.schema && !task.discussionId && task.status === 'completed' ? taskSignal(result.text) : null;
+      let signal =
+        !task.schema && (!task.discussionId || task.kind === 'direct') && task.status === 'completed'
+          ? taskSignal(result.text)
+          : null;
       if (signal?.kind === 'QUESTION' && this.crew.state.questionsEnabled !== false) {
         task.status = 'waiting';
         task.question = signal.text;
@@ -290,11 +298,6 @@ export class TaskQueue {
         return;
       }
       if (signal) {
-        if (signal.kind === 'BLOCKED' && this.crew.workflows.recover(task, signal.text)) {
-          this.crew.save();
-          this.drain();
-          return;
-        }
         task.status = 'failed';
         task.error =
           signal.kind === 'BLOCKED'
@@ -306,6 +309,11 @@ export class TaskQueue {
       task.status = task.pauseRequested && flow?.status === 'paused' ? 'interrupted' : 'failed';
       task.error = task.recoveryBlocker ? `${task.recoveryBlocker}\nRecovery failed: ${error.message}` : error.message;
     }
+    if (task.status === 'failed' && !task.workflowId && (await recoverTask(this.crew, task))) {
+      this.crew.save();
+      this.drain();
+      return;
+    }
     task.finishedAt = Date.now();
     this.crew.discussions.finish(task);
     try {
@@ -314,7 +322,7 @@ export class TaskQueue {
     } catch (error) {
       task.status = 'failed';
       task.error = task.recoveryBlocker ? `${task.recoveryBlocker}\nRecovery failed: ${error.message}` : error.message;
-      this.crew.workflows.fail(task.workflowId, task.error);
+      if (!this.crew.workflows.recoverFailure(task, task.error)) this.crew.workflows.fail(task.workflowId, task.error);
     }
     this.crew.save();
     this.crew.notify(`Task ${task.id}: ${task.status}${task.error ? ` — ${task.error}` : ''}`);

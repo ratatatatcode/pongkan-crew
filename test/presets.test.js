@@ -8,12 +8,35 @@ import { execute } from '../src/commands.js';
 import { validateState } from '../src/state.js';
 import { screen } from '../src/ui.js';
 import { cellWidth } from '../src/markdown.js';
+import { completions } from '../src/controls.js';
 
 function setup(t, runner = async () => {}) {
   const folder = mkdtempSync(join(tmpdir(), 'pongkan-presets-'));
   t.after(() => rmSync(folder, { recursive: true, force: true }));
   return new Crew(folder, { runner });
 }
+
+test('clipper is discoverable and applies a persistent video crew with independent review', t => {
+  const crew = setup(t);
+  const app = { crew, selected: 'chief', panel: null };
+  assert.ok(completions('/preset apply cli', []).includes('/preset apply clipper'));
+  execute(app, '/preset show clipper');
+  assert.match(app.panel.lines.join('\n'), /video-editor/);
+  execute(app, '/preset apply clipper');
+  assert.equal(app.selected, 'video-producer');
+  assert.equal(crew.reviewerName, 'video-reviewer');
+  for (const name of ['video-editor', 'captioner', 'copywriter']) {
+    assert.equal(crew.member(name).writable, true);
+  }
+  assert.equal(crew.member('footage-analyst').writable, false);
+  assert.equal(crew.member('video-reviewer').writable, false);
+  validateState(crew.state);
+  const restored = new Crew(crew.folder);
+  assert.equal(restored.state.activePreset, 'clipper');
+  assert.equal(restored.leadName, 'video-producer');
+  crew.undo();
+  assert.equal(crew.leadName, 'chief');
+});
 test('presets preview, apply, persist and undo without losing the old conversations', t => {
   const crew = setup(t);
   crew.member('researcher').messages.push({ role: 'user', text: 'Saved question' });
