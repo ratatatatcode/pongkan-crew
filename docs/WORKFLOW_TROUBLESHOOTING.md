@@ -4,6 +4,18 @@
 
 This guide covers known failure categories in Crew, including blocked workflows, startup, permissions, saved state, conversations, scheduling, exports, and terminal behavior. New failures can occur; use the diagnostic checklist at the end when no section matches. A blocked report means a prerequisite remains unresolved; it does not necessarily mean a database operation failed.
 
+## Inspect work, acceptance, and usage
+
+Start with `/workflow report ID` for completed assignments, active work, blockers, acceptance evidence, and the relevant next command. `/workflow criteria ID` separates pass/fail/unverified requirements from incidental limitations. Completed assignments alone do not establish verified delivery. Missing criteria and invalidated reviews remain explicitly unverified.
+
+Use `/search TEXT` to find earlier findings, including archived conversations. Results include record IDs and excerpts; narrow queries with more than 40 matches. `/commands QUERY` searches command descriptions and fills the prompt before you supply arguments.
+
+Unavailable tokens in `/usage` mean no Codex usage reports have been saved for that scope. Older counts cannot be reconstructed. Partial reports show measured versus reported turns. Cached input is included in input; cumulative turn time can exceed elapsed wall time during parallel work. Model-turn budgets do not cap spending.
+
+For isolated work, `/worktree review ID` identifies dirty workspaces, overlapping files, and commits ahead/behind the current project HEAD. Inspect these findings before an explicit Git merge. A clean preview is not a merge simulation; uncommitted/untracked work is excluded from branch merges.
+
+If a template already exists, inspect `/template show NAME`, then delete it explicitly before replacing it. Invalid names, oversized instructions/goals, and expanded prompts above 16,000 characters are rejected before starting work.
+
 ## Quick start: the recovery command
 
 Restart Crew after updating its code, then enter this in Crew's input:

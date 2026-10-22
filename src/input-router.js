@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { buildArgs } from './crew.js';
 import { routeNaturalInput } from './natural-input.js';
 import { structuredOutput } from './structured-output.js';
+import { emptyUsage, reportedUsage, accumulateUsage } from './usage.js';
 
 const ACTIONS = ['execute', 'correct', 'answer', 'resume', 'stop', 'discuss', 'status', 'clarify', 'share'];
 export const ROUTING_SCHEMA = {
@@ -382,10 +383,13 @@ export class InputRouter {
     this.controllers.add(controller);
     const schemaPath = join(crew.folder, '.pongkan-crew', `route-${input.id}.json`);
     let response = '';
+    const usage = emptyUsage();
+    const startedAt = Date.now();
     const timeout = setTimeout(() => controller.abort(), 60000);
     try {
       writeFileSync(schemaPath, JSON.stringify(ROUTING_SCHEMA), { flag: 'wx', mode: 0o600 });
       const lead = crew.member(crew.leadName);
+      usage.turns = 1;
       await crew.runner(
         buildArgs(crew.folder, { ...lead, writable: false, threadId: null }, schemaPath),
         'PONGKAN_ROUTE\nInterpret the latest user message semantically using the current conversation and assignments. Do not use keyword matching. Do not run tools, inspect files, execute work, or answer the project question. Return ONLY the routing JSON.\n' +
@@ -398,6 +402,13 @@ export class InputRouter {
           'For a reply to a router clarification in context.clarification or priorInputs, combine the original request, exact question, and latest answer into the resolved goal. Do not treat a generic affirmation as selecting between incompatible alternatives; ask a focused follow-up if the preference remains ambiguous. Use answer only for an actual waiting assignment with a taskId. A blocked input or completed report is not a waiting assignment. If routingError is present, the previous answer decision was rejected: reinterpret the original message against the current assignments. Do not repeat an invalid task ID or assume the user must answer old work. Choose execute for a new edit, or clarify if its meaning is genuinely ambiguous.\n' +
           JSON.stringify({ message: input.text, addressedTo: input.target, view: input.view, context }),
         event => {
+          if (event.type === 'turn.completed' && !usage.reportedTurns) {
+            const report = reportedUsage(event.usage);
+            if (report) {
+              Object.assign(usage, report);
+              usage.reportedTurns = 1;
+            }
+          }
           if (
             ['item.started', 'item.completed'].includes(event.type) &&
             ['command_execution', 'file_change', 'mcp_tool_call', 'web_search'].includes(event.item?.type)
@@ -413,12 +424,17 @@ export class InputRouter {
       return structuredOutput(response, ROUTING_SCHEMA.required);
     } finally {
       clearTimeout(timeout);
+      if (usage.turns) {
+        usage.elapsedMs = Math.max(0, Date.now() - startedAt);
+        accumulateUsage(crew.state, usage);
+      }
       this.controllers.delete(controller);
       try {
         unlinkSync(schemaPath);
       } catch (error) {
         if (error.code !== 'ENOENT') crew.notify('Could not remove routing schema.');
       }
+      if (usage.turns) crew.save();
     }
   }
   fail(input, app, error) {

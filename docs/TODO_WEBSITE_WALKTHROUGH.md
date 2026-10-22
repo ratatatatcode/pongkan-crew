@@ -99,9 +99,13 @@ Corrections take effect at the next task boundary. Stopping preserves file edits
 
 Before running the app, inspect `/changes` or `/diff` and read the final review. A completed workflow can still report unresolved defects or checks that were not run. Ask for a follow-up fix when needed.
 
+Use `/workflow report ID` for finished work, blockers, and the next action; `/workflow criteria ID` shows saved requirement evidence. `/usage ID` shows reported tokens for newly measured workflow turns. To find earlier navigation decisions, try `/search navigation`. `/commands QUERY` helps discover commands and fill their arguments.
+
 ### Optional isolated build
 
 To execute the saved discussion in a separate Git worktree, use `/crew-task --isolated` after discussion finishes. Commit the todo project's baseline first: isolation starts from committed `HEAD`, so existing uncommitted changes are not copied. Inspect the retained worktree and branch afterward; Crew does not automatically commit, merge, push, or deploy. Run the commands in step 5 from that worktree if the implementation was isolated.
+
+Before merging an isolated build, use `/worktree review ID` to inspect status, overlapping files, and commits ahead/behind the current project HEAD. This preview does not simulate or perform a merge; uncommitted and untracked changes need separate inspection.
 
 ## 5. Run the app
 

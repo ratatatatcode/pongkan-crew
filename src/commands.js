@@ -9,6 +9,10 @@ import { readModelCatalog, readModelDefaults, modelLabel, validateModelChoice, m
 import { steer } from './steering.js';
 import { PERSONALITIES } from './personality.js';
 import { CODEX_PERMISSION_MODES } from './codex-permissions.js';
+import { workflowReport, criteriaLines, searchHistory, nextAction, taskNextAction } from './workspace-insights.js';
+import { usageLines } from './usage.js';
+import { templateCommand } from './task-templates.js';
+import { openCommandPicker } from './command-picker.js';
 export const HELP = [
   'Type normally and press Enter: the recipient AI interprets your full request.',
   'Slash commands are optional overrides. UPPERCASE = replace with a value; [VALUE] = optional.',
@@ -59,6 +63,14 @@ export const HELP = [
   '/task --isolated GOAL         Run in a separate Git worktree',
   '/crew-task --isolated [GOAL]  Execute discussion in a separate worktree',
   '/worktree list|show ID        Inspect retained isolated workflow changes',
+  '/worktree review ID           Preview changes and merge readiness against current HEAD',
+  '/search TEXT                  Search saved chats, task results and project decisions',
+  '/usage [WORKFLOW_ID]          Show reported tokens, model turns and cumulative elapsed time',
+  '/template list                List saved task instructions',
+  '/template save NAME TEXT      Save instructions; optional {{goal}} placeholder',
+  '/template show NAME           Read saved task instructions',
+  '/template run NAME GOAL       Start a workflow using saved instructions',
+  '/template delete NAME         Delete saved task instructions',
   '/steer TASK_OR_WORKFLOW_ID TEXT Queue a correction at the next task boundary',
   '/schedule add MINUTES NAME GOAL Create a recurring read-only task',
   '/schedule add MINUTES NAME --write GOAL Allow member write permissions',
@@ -88,6 +100,8 @@ export const HELP = [
   '/queue retry ID               Explicitly repeat a finished task',
   '/workflow list [STATUS]       List workflows (active, paused, or all)',
   '/workflow show ID             Show plan, steps and summary',
+  '/workflow report ID           Show completed work, blockers and next action',
+  '/workflow criteria ID         Inspect requested requirements and review evidence',
   '/workflow cancel ID           Cancel workflow and dependent steps',
   '/workflow pause ID            Pause workflow after the active turn stops',
   '/workflow resume ID           Continue unfinished steps; keep completed work',
@@ -119,6 +133,7 @@ export const HELP = [
   '/undo                         Restore latest removed/cleared conversation',
   '/help or ?                    Open this help panel',
   '/help QUERY                   Search the command guide',
+  '/commands [QUERY]             Search and select commands with argument hints',
   '/close                        Close a panel',
   '/restart                      Reload Crew code; preserve launch options',
   '/quit or /exit                Stop tasks and exit',
@@ -151,8 +166,8 @@ export const HELP = [
   'Remove/clear/new archive local history. /undo restores the latest change.',
   'Saved work starts paused after restart. /queue resume resumes queued work.',
   'Plain messages go directly to the recipient. /workflow retry ID restarts the complete workflow.',
-  'The lead validates at most twelve sequential assignments, then review and summary.',
-  'Completed workflow means execution finished; inspect review for defects.',
+  'Lead workflows choose one action at a time within a configurable model-turn budget.',
+  'New lead workflows require independent acceptance before delivery; legacy histories may differ.',
 ].flatMap(commandExamples);
 
 function idle(crew, name) {
@@ -256,7 +271,35 @@ export function execute(app, line, { submission = 'enter' } = {}) {
     panel(`HELP: ${text || 'all'}`, matches.length ? matches : ['No help matches. Try another search.']);
     return;
   }
-  if (command === '/restart') app.restart();
+  if (command === '/commands') openCommandPicker(app, text, HELP);
+  else if (command === '/search') {
+    const result = searchHistory(crew, text);
+    panel(`SEARCH: ${text}`, [
+      ...(result.matches.length ? result.matches : ['No saved history matches.']),
+      ...(result.truncated ? ['Showing the first 40 matches. Narrow your search for more specific results.'] : []),
+    ]);
+  } else if (command === '/usage') {
+    if (parts.length > 1) throw new Error('Use /usage [WORKFLOW_ID].');
+    const flow = parts[0] ? crew.workflows.get(parts[0]) : null;
+    panel('USAGE', () => usageLines(crew.state, flow));
+  } else if (command === '/template') {
+    const [action, name] = parts;
+    if (
+      !['list', 'save', 'show', 'run', 'delete'].includes(action) ||
+      (action === 'list'
+        ? parts.length !== 1
+        : ['show', 'delete'].includes(action)
+          ? parts.length !== 2
+          : parts.length < 3)
+    )
+      throw new Error('Use /template list|show NAME|save NAME TEXT|run NAME GOAL|delete NAME.');
+    const body = text.replace(/^\S+\s+\S+\s*/, '');
+    const result = templateCommand(crew, action, name, body);
+    if (action === 'run') return execute(app, `/task ${result}`, { submission });
+    if (action === 'list' || action === 'show')
+      panel('TASK TEMPLATES', result.length ? result : ['No templates. Use /template save NAME TEXT.']);
+    else app.notice = `Template ${name} ${action === 'save' ? 'saved' : 'deleted'}.`;
+  } else if (command === '/restart') app.restart();
   else if (command === '/quit' || command === '/exit') app.quit();
   else if (command === '/questions') {
     if (parts.length > 1 || (text && !['on', 'off', 'list'].includes(text)))
@@ -645,9 +688,11 @@ export function execute(app, line, { submission = 'enter' } = {}) {
         'WORKTREE CHANGES',
         crew.worktrees.diff(parts[1]).then(text => text.split('\n')),
       );
+    else if (parts[0] === 'review' && parts.length === 2)
+      return load('WORKTREE REVIEW', crew.worktrees.review(parts[1]));
     else
       throw new Error(
-        'Use /worktree list|show WORKFLOW_ID. Worktrees are retained; commit and merge them explicitly with Git.',
+        'Use /worktree list|show|review WORKFLOW_ID. Worktrees are retained; commit and merge them explicitly with Git.',
       );
   } else if (command === '/send') {
     crew.member(parts[0]);
@@ -898,6 +943,7 @@ export function execute(app, line, { submission = 'enter' } = {}) {
           '',
           'ERROR',
           task.error || '(none)',
+          `Next: ${taskNextAction(crew, task)}`,
         ];
       });
     } else if (action === 'pause') crew.queue.pause();
@@ -925,6 +971,14 @@ export function execute(app, line, { submission = 'enter' } = {}) {
     app.notice = `Recovery started for ${flow.id}; completed work preserved. Investigation, repair and verification continue automatically within existing permissions. Check /activity for progress.`;
   } else if (command === '/workflow') {
     const [action, id] = parts;
+    if (action === 'report' || action === 'criteria') {
+      if (parts.length !== 2) throw new Error(`Use /workflow ${action} WORKFLOW_ID.`);
+      const flow = crew.workflows.get(id);
+      panel(`WORKFLOW ${action.toUpperCase()} ${id}`, () =>
+        action === 'report' ? workflowReport(crew.state, flow, crew) : criteriaLines(flow),
+      );
+      return;
+    }
     if (!action || action === 'list') {
       const filter = action === 'list' ? id : null;
       if (filter && !['active', 'paused', 'all'].includes(filter))
@@ -1001,6 +1055,11 @@ export function execute(app, line, { submission = 'enter' } = {}) {
           '',
           'ERROR',
           flow.error || '(none)',
+          `Next: ${nextAction(
+            crew,
+            flow,
+            crew.state.tasks.filter(task => task.workflowId === id),
+          )}`,
           '',
           'EXECUTION EVIDENCE',
           ...crew.state.tasks

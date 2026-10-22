@@ -2,6 +2,14 @@
 
 [README](../README.md) | [Command reference](COMMANDS.md) | [Security](../SECURITY.md)
 
+## Reports, usage, templates, and command discovery
+
+Restart with `/restart` after updating. `/commands` opens the searchable picker; `/workflow report ID` and `/workflow criteria ID` expose work and review evidence. `/search TEXT` searches saved history and memory without a model call. `/worktree review ID` previews readiness without merging branches.
+
+State remains version 1. Older state loads with an empty template list and no usage totals. Existing conversations, tasks, and workflows are preserved. New templates and measured usage persist in `.pongkan-crew/state.json`; malformed template or usage records fail validation. Keep a private backup before repairing state manually.
+
+Usage starts with newly measured turns, including routing. Historical token counts cannot be reconstructed and missing usage remains unavailable. Criteria need no backfill: reports use saved evidence and identify missing or invalidated acceptance. No state deletion, dependency installation, or model call is required to enable these views.
+
 ## State location and safe upgrades
 
 Older active and archived teammate records without `codexPermissions` receive the legacy default `approve` on load. Explicit permission modes and role write/read settings are preserved. This includes history created by fresh-chat and isolation operations; those archives do not need to be deleted to reopen a project. Invalid explicit modes still fail validation.

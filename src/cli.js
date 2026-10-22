@@ -10,6 +10,7 @@ import { screen } from './ui.js';
 import { execute, queuePrompt, cycle, HELP } from './commands.js';
 import { acquireLock, checkRuntime } from './runtime.js';
 import { completions } from './controls.js';
+import { commandPickerKey } from './command-picker.js';
 import { layoutInput, navigateInput, PromptHistory, promptEnterAction } from './input.js';
 import { MOUSE_ON, MOUSE_OFF, scrollView, terminalInput } from './scroll.js';
 import { enableWindowsMouse, connectWindowsInput } from './windows-input.js';
@@ -206,6 +207,11 @@ async function main() {
     },
     undefined,
     text => {
+      if (app.panel?.kind === 'command-picker') {
+        commandPickerKey(app, text.replace(/\s+/g, ' '));
+        render();
+        return;
+      }
       const chars = Array.from(text.replace(/\r\n?/g, '\n'));
       input.splice(cursor, 0, ...chars);
       cursor += chars.length;
@@ -238,6 +244,12 @@ async function main() {
   } else useStdin();
   keyboard.on('keypress', (str, key = {}) => {
     try {
+      const picked = commandPickerKey(app, str, key);
+      if (picked.handled) {
+        if (picked.input != null) setInput(picked.input);
+        render();
+        return;
+      }
       if (key.ctrl && key.name === 'c') {
         void app.quit();
         return;
@@ -255,6 +267,13 @@ async function main() {
             text,
             crew.state.members.map(m => m.name),
             Object.keys(crew.presets.list()),
+            {
+              workflows: crew.state.workflows.map(flow => flow.id),
+              worktrees: crew.state.workflows.filter(flow => flow.workspace).map(flow => flow.id),
+              tasks: crew.state.tasks.map(task => task.id),
+              templates: (crew.state.templates || []).map(entry => entry.name),
+              conversations: crew.state.conversations.map(chat => chat.id),
+            },
           );
           if (matches.length === 1) setInput(matches[0] + ' ');
           else if (matches.length) app.notice = matches.join(' | ');

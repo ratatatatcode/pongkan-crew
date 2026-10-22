@@ -4,6 +4,18 @@ import { PERSONALITIES } from './personality.js';
 
 const COMMANDS = [
   '/help',
+  '/commands',
+  '/search',
+  '/usage',
+  '/template list',
+  '/template save',
+  '/template show',
+  '/template run',
+  '/template delete',
+  '/workflow report',
+  '/workflow criteria',
+  '/workflow pause',
+  '/worktree review',
   '/conversation list',
   '/conversation new',
   '/conversation open',
@@ -114,7 +126,28 @@ const COMMANDS = [
   '/roles list',
   '/roles show',
 ];
-export function completions(input, names, presetNames = ['default', 'web', 'mobile', 'social', 'clipper', 'content']) {
+export function completions(
+  input,
+  names,
+  presetNames = ['default', 'web', 'mobile', 'social', 'clipper', 'content'],
+  saved = {},
+) {
+  const argument = input.match(
+    /^(\/workflow (?:show|report|criteria|pause|resume|cancel|retry|budget)|\/worktree (?:show|review)|\/usage|\/recovery|\/queue (?:show|cancel|retry)|\/template (?:run|show|delete)|\/conversation (?:open|archive|restore))\s+(\S*)$/,
+  );
+  if (argument) {
+    const prefix = argument[1];
+    const values = prefix.startsWith('/template')
+      ? saved.templates
+      : prefix.startsWith('/queue')
+        ? saved.tasks
+        : prefix.startsWith('/conversation')
+          ? saved.conversations
+          : prefix.startsWith('/worktree')
+            ? saved.worktrees
+            : saved.workflows;
+    return (values || []).filter(value => value.startsWith(argument[2])).map(value => `${prefix} ${value}`);
+  }
   if (input.startsWith('@')) return names.filter(n => n.startsWith(input.slice(1))).map(n => `@${n}`);
   const role = input.match(/^(\/roles show|\/crew (?:add|role) [a-z][a-z0-9-]* --role)\s+(\S*)$/);
   if (role)
@@ -153,7 +186,6 @@ export function completions(input, names, presetNames = ['default', 'web', 'mobi
 }
 export function helpSearch(query) {
   const needle = query.trim().toLowerCase();
-  return HELP.filter(line => line.toLowerCase().includes(needle)).length
-    ? HELP.filter(line => line.toLowerCase().includes(needle))
-    : ['No help matches. Try another search.'];
+  const matches = HELP.filter(line => line.toLowerCase().includes(needle));
+  return matches.length ? matches : ['No help matches. Try another search.'];
 }

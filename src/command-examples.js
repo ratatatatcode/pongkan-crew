@@ -1,5 +1,16 @@
 // Examples use the default roster. Model IDs are illustrative, not availability claims.
 export const COMMAND_EXAMPLES = {
+  '/commands': '/commands reported tokens',
+  '/search': '/search navigation',
+  '/usage': '/usage WORKFLOW_ID',
+  '/template list': '/template list',
+  '/template save': '/template save fix Inspect and fix {{goal}}, then request independent review.',
+  '/template show': '/template show fix',
+  '/template run': '/template run fix keyboard navigation',
+  '/template delete': '/template delete fix',
+  '/workflow report': '/workflow report WORKFLOW_ID',
+  '/workflow criteria': '/workflow criteria WORKFLOW_ID',
+  '/worktree review': '/worktree review WORKFLOW_ID',
   '/recovery': '/recovery',
   '/roles list': '/roles list engineering',
   '/roles show': '/roles show frontend-dev',

@@ -1,6 +1,7 @@
 import { wrapText, fitText, renderMarkdown } from './markdown.js';
 import { layoutInput } from './input.js';
-import { activityStyle } from './activity.js';
+import { activityRows } from './activity.js';
+import { activitySummary } from './workspace-insights.js';
 import { displayMessages, readableReply } from './conversations.js';
 import { roleRows, isRoleHeading } from './role-display.js';
 import { workflowFeed } from './workflow-feed.js';
@@ -352,22 +353,8 @@ export function screen(
   }
   if (view === 'activity') {
     const events = crew.activityEvents?.length ? crew.activityEvents : crew.activity.map(text => ({ text }));
-    content = events.flatMap(event => {
-      const stamp = event.at ? new Date(event.at).toLocaleTimeString('en-GB', { hour12: false }) : 'ACTIVITY';
-      const style = activityStyle(event);
-      return [
-        row(`${stamp}  ${style.label}`, style.tone),
-        ...renderMarkdown(event.text, readingWidth, {
-          folder: crew.folder,
-          names: crew.state.members.map(member => member.name),
-        }).map(item => ({
-          ...item,
-          tone: item.tone === 'body' ? style.tone : item.tone,
-        })),
-        ...(event.detail ? wrap(event.detail, contentWidth - 6, true).map(text => row('  ' + text, 'muted')) : []),
-        row(''),
-      ];
-    });
+    const names = crew.state.members.map(member => member.name);
+    content = events.flatMap(event => activityRows(event, readingWidth, contentWidth - 6, crew.folder, names));
     content = [...workflowFeed(crew, readingWidth), ...content];
     if (!content.length)
       content = [
@@ -379,9 +366,10 @@ export function screen(
   const offset = view === 'activity' ? activityScroll : scroll;
   const activeMembers = crew.liveMembers ? crew.liveMembers() : crew.state.members.filter(m => m.status === 'working');
   const liveRows =
-    view === 'activity' && !panel && activeMembers.length
+    view === 'activity' && !panel
       ? [
-          row('LIVE NOW', 'heading'),
+          ...activitySummary(crew).flatMap(text => wrap(text, readingWidth).map(text => row(text, 'muted'))),
+          ...(activeMembers.length ? [row('LIVE NOW', 'heading')] : []),
           ...activeMembers
             .slice(0, Math.max(1, Math.min(3, Math.floor((height - 3) / 2))))
             .flatMap(m => [
@@ -391,7 +379,7 @@ export function screen(
               ),
               row(m.progress?.action || 'Waiting for Codex events', 'muted'),
             ]),
-        ]
+        ].slice(0, Math.max(1, height - 4))
       : [];
   const logHeight = Math.max(1, height - liveRows.length - (liveRows.length ? 1 : 0));
   const end = content.length - Math.max(0, Math.min(offset, Math.max(0, content.length - logHeight)));
