@@ -23,6 +23,9 @@ const CLI_TIPS = [
   '/queue list shows queued work and its status.',
   'Shift+Right fills an answer for a waiting question.',
   '/changes shows files changed by crew tasks.',
+  '/workflow show ID displays progress and model-turn usage.',
+  '/workflow budget ID TURNS sets a lead workflow model-call limit.',
+  'Linux Markdown exports are owner-only; Windows exports use folder ACLs.',
   'Use /stop to cancel the selected task or Crew Chat discussion.',
   'Use /personality NAME STYLE to set a teammate’s chat tone.',
 ];

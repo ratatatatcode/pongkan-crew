@@ -216,15 +216,17 @@ An unknown task or workflow ID may belong to another target folder or be mistype
 
 “Lead returned invalid JSON,” “Invalid lead plan,” or “No complete structured report was returned” means Crew could not accept the required structured response. It must not invent missing steps or treat malformed output as a valid plan.
 
-Inspect `/workflow show WORKFLOW_ID` and the failing task. A plan needs 1–12 named steps, existing teammates, no step assigned to the lead, and an existing read-only reviewer. A workflow marked as requiring edits must include a writable implementer. Correct the roster or request if needed, then deliberately retry planning. Inspect partial edits first if failure occurred after implementation rather than during initial planning.
+For an explicitly legacy workflow that fails during planning, inspect `/workflow show WORKFLOW_ID` and the failing task. Its plan needs 1–12 named steps, existing teammates, no step assigned to the lead, and an existing read-only reviewer. A workflow marked as requiring edits must include a writable implementer. Correct the roster or request if needed, then deliberately retry planning. Inspect partial edits first if failure occurred after implementation rather than during initial planning. New lead workflows do not create a fixed plan; inspect their latest decision and evidence instead.
 
 “Invalid recovery decision” or “Recovery failed” can indicate malformed output or an unavailable teammate. Crew stops rather than executing an invalid decision. Check the accompanying original blocker; fix the underlying prerequisite before retrying. Automatic recovery attempts are bounded and do not increase through repeated resume commands.
 
 “Recovery cannot introduce source edits into a read-only workflow” is intentional. Start a separately authorized implementation task if source changes are needed; changing the prose of a read-only review does not grant edit access.
 
-## Completed does not mean verified
+## Workflow completion and verification
 
-The workflow status `completed` means its scheduled turns finished. Read the summary and review for defects, unavailable checks, and remaining work.
+New lead workflows reach `completed` only after an independent review reports the requested outcome met. If requirements fail or remain unverified, the lead can repair and request another review; repeated reviews without progress stop the workflow with outstanding findings. Read `/workflow show WORKFLOW_ID` for the current criteria, evidence, turn usage, and errors.
+
+Older legacy workflows can still complete when their scheduled turns finish, even if their narrative review reports findings. Inspect their summary and review before treating the result as accepted.
 
 For workflows with structured outcome verification, `needs_work` means a requirement failed or remains unmet; `unverified` means evidence or checks are insufficient. A worker's claim of passing tests does not replace independent reviewer inspection. A `met` report without recorded successful independent inspection is downgraded to `unverified`.
 
@@ -291,6 +293,8 @@ Schedule intervals must be whole minutes from 1 to 525600, goals 1–8000 charac
 Inspect `/markdown` for export status and location. Enable saving with `/markdown on` before `/markdown refresh`. Disabling export does not erase existing documents. See the [Markdown export contract](MARKDOWN_SAVING_CONTRACT.md) for how workflow, discussion, and standalone records are organized.
 
 If a save fails, inspect the exact destination and error. A filename conflict may mean an existing file is not a Crew-generated document. Preserve it and resolve the conflict rather than overwriting it blindly. Linked or redirected destinations are intentionally rejected. After resolving the storage issue, refresh exports; export failure alone does not prove that the implementation failed.
+
+On Linux, enabling or refreshing exports restricts the `docs/pongkan-docs/` directory to your account, including an existing directory. New or replaced files use owner-only permissions. Move unrelated files out of that directory if other local accounts need access. Windows uses inherited project-folder ACLs; inspect those ACLs before exporting in a shared folder.
 
 For an invalid `project-memory.json`, back it up and repair its expected entries before continuing. Memory supports up to 50 entries, 2000 characters per entry, and 40 KB overall. Use `/memory show` to inspect IDs and `/memory remove MEMORY_ID` to remove a specific entry. Shorten content when a size limit is reached. Memory is guidance, not permission to bypass the task's boundaries.
 

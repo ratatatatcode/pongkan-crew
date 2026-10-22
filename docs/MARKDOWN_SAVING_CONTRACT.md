@@ -43,6 +43,7 @@ Historical semantic-routing records remain in authoritative state; ordinary send
 - Validate containment and reject symlinks/junctions or other redirection that would permit writes outside that folder. Reject unsafe destination files rather than following links.
 - Windows exports hold read-access directory handles without delete sharing from the filesystem root through the export directory during creation, writing, replacement, and cleanup. Metadata-only handles do not provide the required rename protection. A PowerShell/.NET helper owns those handles for the entire operation.
 - Linux exports traverse ancestors without following symlinks and use pinned directory descriptors via `/proc/self/fd`. This prevents path replacement from redirecting operations to a junction/symlink target. It does not prevent a process with the same filesystem permissions from moving the original opened directory elsewhere. Platforms without these supported primitives report an error rather than falling back to path-based writes.
+- On Linux, enabling exports restricts `docs/pongkan-docs/` to owner-only access (`0700`), including when the directory already exists. New or replaced export files are owner-only (`0600`). This also restricts access to unrelated files placed inside that export directory. Existing export files retain their individual modes until replaced, but the directory restriction applies immediately. Windows exports use inherited ACLs; Crew does not change them.
 - Only replace a destination identified as an exporter-owned file for that record, using a recognizable format marker and record ID. Report a conflict if an unrelated file occupies its filename.
 - Write UTF-8 Markdown using a temporary sibling file and atomic replacement where supported. Preserve the previous complete export if writing fails. Never remove unrelated files or existing documents when turning saving off.
 - If initial directory preparation fails, leave the toggle unchanged and show the error. If an enabled export later fails, retain authoritative results and the enabled setting, and visibly report the failed path and reason. Use refresh to retry without requiring a result change.
@@ -57,5 +58,6 @@ Historical semantic-routing records remain in authoritative state; ordinary send
 6. Visible directory/write errors without loss of authoritative results; unrelated filename conflicts and redirected paths cannot overwrite unrelated files or escape the project.
 
 7. Refresh regenerates historical finished records and consolidates only exporter-owned task duplicates after a successful combined write.
+8. Linux export directory and file permissions are owner-only; Windows continues to use inherited ACLs.
 
 These expectations describe behavior to verify, not a new test report. See [Contributing](../CONTRIBUTING.md) for current development checks.
