@@ -50,3 +50,5 @@ Coordinator and state-migration changes must cover fresh default crews, older sa
 ## Preparing a public release
 
 Follow the [public release checks](SECURITY.md#public-release-checks) and review the [release security audit](docs/RELEASE_SECURITY_AUDIT.md). Ignored files can still exist in old commits. Never run a contributor's scripts on a machine containing production credentials; review executable changes first and use a clean environment. Keep optional live Codex checks separate from offline CI.
+
+Release tags must point to a commit on `main` with the required CI checks passing for that exact commit. See `.github/workflows/release.yml` before creating a version tag.

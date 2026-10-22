@@ -72,3 +72,12 @@ Security posture adheres to the guidelines in [SECURITY.md](../SECURITY.md):
 - The release workflow uses `contents: write` to publish release assets; the CI workflow retains read-only repository access.
 - Offline CI runs without personal credentials or Codex secrets.
 - Pull-request concurrency cancellation prevents stale redundant runs.
+
+## Follow-up: release gating and export permissions
+
+Reviewed on 2026-10-22 against main after PR #24 (`f88b5e8`):
+
+- The release workflow rejects tags whose commit is not contained in `main` and requires all five named CI checks to have succeeded on that exact commit before publishing. Its token has only `checks: read` and `contents: write`, the permissions needed for that validation and release creation.
+- Linux Markdown exports restrict the `docs/pongkan-docs/` directory to mode `0700` and create or replace exported files with mode `0600`. This restriction also applies to existing export directories and can make unrelated files inside them unavailable to other local accounts. Windows exports continue to inherit project-folder ACLs.
+- GitHub's active `Protect main` ruleset requires a pull request, the five CI checks, and blocks force pushes and branch deletion; it has no bypass actors. Secret scanning and push protection are enabled. Dependabot alerts and security updates are disabled, while weekly dependency update PRs are configured.
+- `npm audit` reported no known vulnerabilities in the locked dependency tree at the time of this review. This does not establish that future versions remain free of vulnerabilities.

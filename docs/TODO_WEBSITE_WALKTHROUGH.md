@@ -83,7 +83,7 @@ Proceed with what you've discussed.
 
 ### Follow progress
 
-Chief plans sequential assignments and briefs the assigned teammate. After implementation, Reviewer gives feedback and the worker responds with justified corrections or an explanation. A final independent review follows, then Chief summarizes changes, checks, and unresolved issues. These exchanges appear in the originating Crew Chat.
+The lead selects one next action at a time, such as delegating a bounded implementation task or requesting independent review. Review findings can send specific work back to the responsible teammate. The lead summarizes only after an independent reviewer verifies the requested outcome; unresolved or unavailable checks remain visible. Actual teammate replies appear in the originating Crew Chat.
 
 A **handoff** is the context passed between assignments: earlier findings, reported changes and checks, available changed-file names, and clarification answers. Teammates inspect the same project files; their private conversations are separate. Put decisions in Crew Chat or the build request so execution receives them.
 
