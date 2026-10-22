@@ -1,4 +1,4 @@
-// Optional live check: four or more short Codex requests in a temporary read-only project.
+// Optional live check: lead decisions, one delegate and independent review in a temporary read-only project.
 import { mkdtempSync, writeFileSync, rmSync, realpathSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, isAbsolute, sep } from 'node:path';
@@ -31,7 +31,7 @@ try {
     throw new Error(workflow.error || 'Workflow did not return the expected marker.');
   if (readFileSync(join(folder, 'hello.txt'), 'utf8') !== 'PONGKAN_WORKFLOW_OK\n')
     throw new Error('The fixture was unexpectedly modified.');
-  console.log('LIVE_WORKFLOW_OK: planning, assignment, review and summary passed.');
+  console.log('LIVE_WORKFLOW_OK: persistent lead, delegation, independent review and delivery passed.');
 } catch (error) {
   console.error(error.message);
   process.exitCode = 1;

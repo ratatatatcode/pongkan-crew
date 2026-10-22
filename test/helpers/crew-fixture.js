@@ -1,4 +1,4 @@
-import { Crew as RealCrew } from '../../src/crew.js';
+import { Crew as RealCrew } from './legacy-crew.js';
 import decisions from './intent-decisions.json' with { type: 'json' };
 
 // Explicit AI responses for dispatcher scenarios, never a classifier of message text.

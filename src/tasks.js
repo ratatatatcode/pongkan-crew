@@ -3,6 +3,7 @@ import { taskSignal, clarificationContext } from './questions.js';
 import { crewContext } from './context.js';
 import { recordRecoveryChange } from './recovery-policy.js';
 import { recoverTask } from './task-recovery.js';
+import { DEFAULT_TURN_BUDGET } from './lead-execution.js';
 
 export const TERMINAL = new Set(['completed', 'failed', 'cancelled', 'interrupted']);
 export class TaskQueue {
@@ -40,6 +41,7 @@ export class TaskQueue {
       status: 'queued',
       createdAt: Date.now(),
       kind: 'message',
+      ...(!options.workflowId ? { recoveryMode: 'session', turns: 0, turnBudget: DEFAULT_TURN_BUDGET } : {}),
       ...options,
       conversationId,
     };
@@ -178,6 +180,19 @@ export class TaskQueue {
         !this.crew.workspaceAvailable(this.crew.workspaceFor(task), !task.readOnly && member.writable, task.stableRead)
       )
         continue;
+      const flow = task.workflowId ? this.crew.workflows.get(task.workflowId) : null;
+      if (flow?.engine === 'lead' && !this.crew.workflows.leadExecution.beforeStart(flow, task)) continue;
+      if (!flow && task.recoveryMode === 'session') {
+        if (task.turns >= task.turnBudget) {
+          task.status = 'failed';
+          task.error =
+            'Overall model-turn budget reached. Completed artifacts are preserved; inspect the outstanding findings.';
+          task.finishedAt = Date.now();
+          this.crew.save();
+          continue;
+        }
+        task.turns++;
+      }
       task.status = 'running';
       task.startedAt = Date.now();
       this.crew.workflows.onStart(task);

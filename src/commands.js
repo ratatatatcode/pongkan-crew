@@ -91,6 +91,7 @@ export const HELP = [
   '/workflow cancel ID           Cancel workflow and dependent steps',
   '/workflow pause ID            Pause workflow after the active turn stops',
   '/workflow resume ID           Continue unfinished steps; keep completed work',
+  '/workflow budget ID TURNS     Set the overall model-turn budget for new execution',
   '/workflow retry ID            Restart complete workflow; may repeat edits',
   '/recovery [WORKFLOW_ID]       Diagnose and repair unfinished work; renew bounded recovery',
   '',
@@ -969,6 +970,9 @@ export function execute(app, line, { submission = 'enter' } = {}) {
         const flow = crew.workflows.get(id);
         return [
           `Status: ${flow.status}`,
+          ...(flow.engine === 'lead'
+            ? [`Execution: persistent lead · model turns ${flow.turns}/${flow.turnBudget}`]
+            : []),
           `Goal: ${flow.text}`,
           ...(flow.workspace
             ? [
@@ -1013,6 +1017,12 @@ export function execute(app, line, { submission = 'enter' } = {}) {
             }),
         ];
       });
+      app.panel.followLatest = true;
+    } else if (action === 'budget') {
+      if (parts.length !== 3 || !/^\d+$/.test(parts[2]))
+        throw new Error('Use /workflow budget WORKFLOW_ID TOTAL_TURNS.');
+      const flow = crew.workflows.setBudget(id, Number(parts[2]));
+      app.notice = `Workflow ${id} model-turn budget: ${flow.turns}/${flow.turnBudget}. Resume explicitly to continue stopped work.`;
     } else if (action === 'cancel') crew.workflows.cancel(id);
     else if (action === 'pause') {
       if (parts.length !== 2) throw new Error('Use /workflow pause WORKFLOW_ID.');

@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { writeFileSync } from 'node:fs';
-import { Crew } from '../src/crew.js';
+import { Crew } from './helpers/legacy-crew.js';
 import { validatePlan } from '../src/workflows.js';
 import { screen } from '../src/ui.js';
 

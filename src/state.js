@@ -3,6 +3,7 @@ import { MODEL_ID, EFFORTS } from './models.js';
 import { PERSONALITIES } from './personality.js';
 import { CODEX_PERMISSION_MODES } from './codex-permissions.js';
 import { MAX_RECOVERY_ATTEMPTS, MAX_RECOVERY_STALLS, recoveryBoundary } from './recovery-policy.js';
+import { MAX_TURN_BUDGET } from './lead-execution.js';
 const NAME = /^[a-z][a-z0-9-]{0,31}$/;
 const ID = /^[a-f0-9]{8}$/;
 const TASK_STATUS = new Set(['queued', 'running', 'waiting', 'completed', 'failed', 'cancelled', 'interrupted']);
@@ -267,6 +268,57 @@ export function validateState(state) {
     invalid();
   for (const flow of state.workflows) {
     if (
+      flow.limitations !== undefined &&
+      (!Array.isArray(flow.limitations) ||
+        flow.limitations.length > 12 ||
+        flow.limitations.some(value => typeof value !== 'string' || !value.trim() || value.length > 4000))
+    )
+      invalid();
+    if (
+      flow.verificationProgress !== undefined &&
+      (!flow.verificationProgress ||
+        !Number.isInteger(flow.verificationProgress.bestGap) ||
+        flow.verificationProgress.bestGap < 0 ||
+        flow.verificationProgress.bestGap > 12 ||
+        !Number.isInteger(flow.verificationProgress.stalls) ||
+        flow.verificationProgress.stalls < 0 ||
+        flow.verificationProgress.stalls > 2)
+    )
+      invalid();
+    if (flow.engine !== undefined && !['lead', 'legacy'].includes(flow.engine)) invalid();
+    if (flow.engine === 'lead') {
+      if (
+        !NAME.test(flow.lead) ||
+        (flow.reviewer != null && !NAME.test(flow.reviewer)) ||
+        !Number.isInteger(flow.turnBudget) ||
+        flow.turnBudget < 1 ||
+        flow.turnBudget > MAX_TURN_BUDGET ||
+        !Number.isInteger(flow.turns) ||
+        flow.turns < 0 ||
+        flow.turns > flow.turnBudget ||
+        !flow.sessions ||
+        typeof flow.sessions !== 'object' ||
+        Array.isArray(flow.sessions) ||
+        Object.entries(flow.sessions).some(
+          ([name, session]) =>
+            !NAME.test(name) || !session || (session.threadId !== null && typeof session.threadId !== 'string'),
+        ) ||
+        !Array.isArray(flow.progressEvidence) ||
+        flow.progressEvidence.length > 200 ||
+        flow.progressEvidence.some(value => typeof value !== 'string' || !/^[a-f0-9]{64}$/.test(value)) ||
+        !Array.isArray(flow.decisionHistory) ||
+        flow.decisionHistory.length > MAX_TURN_BUDGET ||
+        flow.decisionHistory.some(
+          value => typeof value !== 'string' || !/^(delegate|review):[a-z][a-z0-9-]{0,31}$/.test(value),
+        ) ||
+        (flow.reviewTaskId != null &&
+          !state.tasks.some(
+            task => task.id === flow.reviewTaskId && task.workflowId === flow.id && task.kind === 'review',
+          ))
+      )
+        invalid();
+    }
+    if (
       flow.recoveryAttempts !== undefined &&
       (!Number.isInteger(flow.recoveryAttempts) ||
         flow.recoveryAttempts < 0 ||
@@ -320,6 +372,36 @@ export function validateState(state) {
   )
     invalid();
   for (const task of state.tasks) {
+    if (
+      task.deliveredAnswers !== undefined &&
+      (!Number.isInteger(task.deliveredAnswers) ||
+        task.deliveredAnswers < 0 ||
+        task.deliveredAnswers > (task.answers?.length || 0))
+    )
+      invalid();
+    if (task.recoveryMode !== undefined && !['session', 'legacy'].includes(task.recoveryMode)) invalid();
+    if (task.recoveryMode === 'session') {
+      if (
+        !Number.isInteger(task.turns) ||
+        task.turns < 0 ||
+        !Number.isInteger(task.turnBudget) ||
+        task.turnBudget < 1 ||
+        task.turnBudget > MAX_TURN_BUDGET ||
+        task.turns > task.turnBudget ||
+        (task.sessionRecoveryStalls !== undefined &&
+          (!Number.isInteger(task.sessionRecoveryStalls) ||
+            task.sessionRecoveryStalls < 0 ||
+            task.sessionRecoveryStalls > MAX_RECOVERY_STALLS + 1)) ||
+        (task.sessionRecoveryEvidence !== undefined &&
+          (!Array.isArray(task.sessionRecoveryEvidence) ||
+            task.sessionRecoveryEvidence.length > 200 ||
+            task.sessionRecoveryEvidence.some(value => typeof value !== 'string' || !/^[a-f0-9]{64}$/.test(value))))
+      )
+        invalid();
+    }
+    if (task.leadDecision !== undefined && (task.leadDecision !== true || task.kind !== 'coordination' || !task.schema))
+      invalid();
+    if (task.localRecoveryAttempts !== undefined && task.localRecoveryAttempts !== 1) invalid();
     if (
       task.recoveryGuidance !== undefined &&
       (typeof task.recoveryGuidance !== 'string' || task.recoveryGuidance.length > 8000)

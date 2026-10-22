@@ -36,6 +36,10 @@ export function answerShortcut(app, input) {
         ) ||
         waiting[0];
   app.panel = {
+    kind: 'answer',
+    questionId: task.id,
+    question: task.question,
+    followLatest: true,
     title: `ANSWER ${task.member}`,
     offset: 0,
     lines: [

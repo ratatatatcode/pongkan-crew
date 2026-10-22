@@ -38,6 +38,7 @@ export function workflowFeed(
     discussionId = null,
     priorDiscussionIds = [],
     workflowId = null,
+    taskId = null,
   } = {},
 ) {
   const discussionIds = new Set([discussionId, ...priorDiscussionIds]);
@@ -48,6 +49,7 @@ export function workflowFeed(
     const createdAt = t.createdAt ?? flow?.createdAt ?? 0;
     return (
       flow &&
+      (!taskId || t.id === taskId) &&
       (!workflowId || flow.id === workflowId) &&
       (conversationId
         ? flow.sourceConversationId === conversationId
@@ -84,6 +86,9 @@ export function workflowFeed(
           : null;
       let result =
         task.status === 'running' && progress?.taskId === task.id ? progress.response || task.result : task.result;
+      if (task.leadDecision && task.status === 'running') result = '';
+      else if (task.leadDecision && !task.decision && result)
+        result = 'Lead decision could not be read. Details are available in Activity.';
       if (task.recoveryFor && result) {
         try {
           const decision = structuredOutput(result, ['action', 'member', 'instruction']);
@@ -97,6 +102,15 @@ export function workflowFeed(
         rows.push(
           { text: `You · correction delivered to ${label(task.member)}`, tone: 'user' },
           ...taskMarkdown(task, `correction-${correction.id}`, correction.text, width, crew),
+          { text: '', tone: 'body' },
+        );
+      for (const answer of task.answers || [])
+        rows.push(
+          { text: 'Question · Answered', tone: 'heading' },
+          ...taskMarkdown(task, `question-${answer.question}`, answer.question, width, crew),
+          { text: '', tone: 'body' },
+          { text: 'Your response', tone: 'user' },
+          ...taskMarkdown(task, `answer-${answer.question}`, answer.answer, width, crew),
           { text: '', tone: 'body' },
         );
       const rawVerification = task.kind === 'review' && task.schema && !task.verificationFormatted;

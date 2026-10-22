@@ -53,6 +53,28 @@ export async function recoverTask(crew, task) {
   )
     return false;
   if (applyPendingCorrection(crew, task)) return true;
+  if (task.recoveryMode === 'session') {
+    const evidence = recoveryEvidence(task);
+    const seen = task.sessionRecoveryEvidence || [];
+    const fresh = evidence.some(value => !seen.includes(value));
+    task.sessionRecoveryStalls = fresh ? 0 : (task.sessionRecoveryStalls || 0) + 1;
+    task.sessionRecoveryEvidence = [...new Set([...seen, ...evidence])].slice(-200);
+    if (task.turns >= task.turnBudget || task.sessionRecoveryStalls > MAX_RECOVERY_STALLS) {
+      task.error =
+        task.turns >= task.turnBudget
+          ? `Overall model-turn budget reached. Last failure: ${task.error}`
+          : `Execution stopped after repeated attempts without new evidence. Last failure: ${task.error}`;
+      return false;
+    }
+    return continueTask(
+      crew,
+      task,
+      `Continue this assignment in your existing session and original permissions. Latest failure: ${task.error}. Investigate the actual operation and current artifacts; test a changed approach before reporting another blocker. Preserve completed work. ${investigationInstruction}`.slice(
+        0,
+        8000,
+      ),
+    );
+  }
   const rounds = task.recoveryRounds || [];
   const evidence = recoveryEvidence(task);
   const observed = new Set(rounds.flatMap(round => round.evidence));

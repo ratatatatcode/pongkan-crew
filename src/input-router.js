@@ -470,7 +470,9 @@ export function inputStatus(crew, input) {
   const flow = crew.state.workflows.find(flow => flow.id === input.workflowId);
   if (flow) {
     if (flow.status === 'failed')
-      return `Incomplete: ${flow.error || 'Automatic recovery could not verify the outcome; inspect /activity for its findings.'} Automatic recovery attempts: ${flow.recoveryAttempts || 0}.`;
+      return flow.engine === 'lead'
+        ? `Incomplete: ${flow.error || 'Inspect the outstanding findings in Activity.'} Model turns: ${flow.turns}/${flow.turnBudget}.`
+        : `Incomplete: ${flow.error || 'Automatic recovery could not verify the outcome; inspect /activity for its findings.'} Automatic recovery attempts: ${flow.recoveryAttempts || 0}.`;
     const waiting = crew.state.tasks.find(task => task.workflowId === flow.id && task.status === 'waiting');
     return waiting
       ? `blocked: ${waiting.member}: ${waiting.question}`

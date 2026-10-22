@@ -11,6 +11,7 @@ const COMMANDS = [
   '/conversation restore',
   '/conversation default',
   '/crew-task',
+  '/workflow budget',
   '/crew-task --isolated',
   '/task --isolated',
   '/worktree list',

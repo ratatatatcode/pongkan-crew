@@ -17,7 +17,7 @@ import {
 import { join, resolve } from 'node:path';
 import { MarkdownExporter } from '../src/markdown-export.js';
 import { execute } from '../src/commands.js';
-import { Crew } from '../src/crew.js';
+import { Crew } from './helpers/legacy-crew.js';
 import { validateState } from '../src/state.js';
 import fs from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
