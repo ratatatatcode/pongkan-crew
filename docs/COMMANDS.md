@@ -67,7 +67,7 @@ Use `/crew-task [GOAL]` after the discussion finishes to explicitly execute with
 | `/personality reset [NAME]`      | Restore neutral style for a teammate or the selected teammate                 | `/personality reset`                                                     |
 | `/next`                          | Cycle forward through teammates and Crew Chat                                 | `/next`                                                                  |
 | `/prev`                          | Cycle backward through teammates and Crew Chat                                | `/prev`                                                                  |
-| `/task TEXT`                     | Lead coordinates bounded work and independent review until delivery            | `/task Add todo filters, verify them, and review the changes.`           |
+| `/task TEXT`                     | Lead coordinates bounded work and independent review until delivery           | `/task Add todo filters, verify them, and review the changes.`           |
 | `/send NAME TEXT`                | Queue a direct assignment without changing selection                          | `/send developer Fix the remaining count.`                               |
 | `/handoff NAME [TASK]`           | Pass the selected teammate's latest assistant answer to another teammate      | `/handoff reviewer Review the implementation against the requirements.`  |
 | `/retry`                         | Resend the selected teammate's latest direct user message                     | `/retry`                                                                 |
@@ -163,20 +163,20 @@ Stopping preserves edits. `/stop` cancels the current shared discussion and its 
 
 During an active workflow, recovery runs automatically; this command is a manual override after a stopped workflow's external conditions change or for interrupted saved work. It renews the recovery budget, retires unfinished obsolete recovery branches, and reconnects original assignments before diagnosis. Completed steps and findings are retained, and unrelated paused tasks stay paused. The coordinator can request a read-only investigation, retry with a concrete alternative, or assign prerequisite implementation to an existing writer within an already writable workflow. Waiting questions still need `/answer`. The command does not change permissions or guarantee that external failures can be repaired.
 
-| Command                        | Purpose                                                             | Sample usage                  |
-| ------------------------------ | ------------------------------------------------------------------- | ----------------------------- |
-| `/queue` or `/queue list`      | List task IDs, statuses, and dispatch state from the newest entries | `/queue list`                 |
-| `/queue show TASK_ID`          | Read prompt, result, error, dependency, and timing                  | `/queue show TASK_ID`         |
-| `/queue pause`                 | Stop new dispatch while active work continues                       | `/queue pause`                |
-| `/queue resume`                | Resume dispatch of eligible queued tasks                            | `/queue resume`               |
-| `/queue move TASK_ID POSITION` | Move a queued task to a one-based queue position                    | `/queue move TASK_ID 1`       |
-| `/queue retry TASK_ID`         | Create a retry of a finished standalone task                        | `/queue retry TASK_ID`        |
-| `/workflow list [STATUS]`      | List workflows with step counts; filter active, paused, or all      | `/workflow list paused`       |
-| `/workflow show WORKFLOW_ID`   | Inspect goal, progress, model-turn usage, results, summary, and errors | `/workflow show 1a2b3c4d`   |
-| `/workflow budget WORKFLOW_ID TOTAL_TURNS` | Set a lead workflow's total model-turn budget (up to 1,000) | `/workflow budget 1a2b3c4d 96` |
-| `/workflow pause WORKFLOW_ID`  | Pause one workflow after stopping its active turn                   | `/workflow pause 1a2b3c4d`    |
-| `/workflow resume WORKFLOW_ID` | Continue unfinished steps, preserving completed assignments         | `/workflow resume 1a2b3c4d`   |
-| `/workflow retry WORKFLOW_ID`  | Start a new attempt at a finished/interrupted workflow              | `/workflow retry WORKFLOW_ID` |
+| Command                                    | Purpose                                                                | Sample usage                   |
+| ------------------------------------------ | ---------------------------------------------------------------------- | ------------------------------ |
+| `/queue` or `/queue list`                  | List task IDs, statuses, and dispatch state from the newest entries    | `/queue list`                  |
+| `/queue show TASK_ID`                      | Read prompt, result, error, dependency, and timing                     | `/queue show TASK_ID`          |
+| `/queue pause`                             | Stop new dispatch while active work continues                          | `/queue pause`                 |
+| `/queue resume`                            | Resume dispatch of eligible queued tasks                               | `/queue resume`                |
+| `/queue move TASK_ID POSITION`             | Move a queued task to a one-based queue position                       | `/queue move TASK_ID 1`        |
+| `/queue retry TASK_ID`                     | Create a retry of a finished standalone task                           | `/queue retry TASK_ID`         |
+| `/workflow list [STATUS]`                  | List workflows with step counts; filter active, paused, or all         | `/workflow list paused`        |
+| `/workflow show WORKFLOW_ID`               | Inspect goal, progress, model-turn usage, results, summary, and errors | `/workflow show 1a2b3c4d`      |
+| `/workflow budget WORKFLOW_ID TOTAL_TURNS` | Set a lead workflow's total model-turn budget (up to 1,000)            | `/workflow budget 1a2b3c4d 96` |
+| `/workflow pause WORKFLOW_ID`              | Pause one workflow after stopping its active turn                      | `/workflow pause 1a2b3c4d`     |
+| `/workflow resume WORKFLOW_ID`             | Continue unfinished steps, preserving completed assignments            | `/workflow resume 1a2b3c4d`    |
+| `/workflow retry WORKFLOW_ID`              | Start a new attempt at a finished/interrupted workflow                 | `/workflow retry WORKFLOW_ID`  |
 
 Moving tasks respects dependencies and the single-writer rule. After failure or restart, inspect the task and workflow records. `/workflow resume ID` continues unfinished lead work with existing artifacts and completed assignments; completed work is not replayed, and unrelated paused assignments remain paused. `/workflow budget ID TOTAL_TURNS` sets the overall model-call budget for a lead workflow, from current usage up to 1,000; the default is 64. It limits wrapper turns, not tokens, money, or native tool calls within a turn. Increasing a budget does not resume stopped work; resume explicitly afterward. A paused workflow stays paused across app restarts. Pausing stops an active turn and preserves its partial result as an interrupted step for continuation. A partially completed failed assignment continues from its existing files and findings. Restart an interrupted discussion with `/discuss TOPIC` or a new direct message.
 
