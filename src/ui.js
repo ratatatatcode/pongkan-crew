@@ -17,7 +17,7 @@ const CLI_TIPS = [
   '/new starts a fresh chat and keeps the old conversation saved.',
   '/new-all starts fresh conversations for the whole crew.',
   '/personality lists chat styles; tone never changes a teammate’s role.',
-  'Type your request normally; the teammate AI interprets it. /crew-task starts coordinated work.',
+  'Crew Chat uses lead-led handling; /discuss explicitly requests full team discussion.',
   'F2 switches between Chat, Crew Chat, and Activity.',
   'Shift+Enter inserts a new line; Enter sends the complete prompt.',
   'Up/Down browses prompt history and restores your current draft.',

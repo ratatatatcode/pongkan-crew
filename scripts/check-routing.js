@@ -29,10 +29,19 @@ try {
     console.log(`PASS: ${JSON.stringify(text)} -> execute, writable implementation`);
   }
   crew.discussions.newConversation();
+  for (const text of ['Hey, everyone! Good evening.', "Evening! Hope you're all doing well."]) {
+    const input = { id: '1234abcd', text, target: null, view: 'group', selected: 'developer', conversationId: null };
+    const context = crew.inputs.contextFor(input);
+    const result = await crew.inputs.resolve(input, context);
+    crew.inputs.validate(result, input, context);
+    assert.equal(result.action, 'discuss');
+    assert.equal(result.teamDiscussion, false);
+    assert.ok(result.target === null || result.target === crew.leadName);
+    console.log(`PASS: ${JSON.stringify(text)} -> one lead reply`);
+  }
   for (const text of [
-    'Hey, everyone! Good evening.',
-    'Can I get a quick wave from the whole room?',
-    "Evening! Hope you're all doing well.",
+    'Each teammate, introduce yourself briefly in turn.',
+    'Have Developer and Reviewer each give their perspective on keyboard navigation. Discuss only.',
   ]) {
     const input = { id: '1234abcd', text, target: null, view: 'group', selected: 'developer', conversationId: null };
     const context = crew.inputs.contextFor(input);
@@ -40,8 +49,7 @@ try {
     crew.inputs.validate(result, input, context);
     assert.equal(result.action, 'discuss');
     assert.equal(result.teamDiscussion, true);
-    assert.equal(result.target, null);
-    console.log(`PASS: ${JSON.stringify(text)} -> collective conversation`);
+    console.log(`PASS: ${JSON.stringify(text)} -> explicitly requested team perspectives`);
   }
   const input = {
     id: '1234abcd',

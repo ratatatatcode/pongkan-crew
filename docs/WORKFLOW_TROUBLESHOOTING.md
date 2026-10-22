@@ -259,11 +259,13 @@ Use `/conversation list` and `/conversation open CONVERSATION_ID` to find saved 
 
 Individual chats, named Crew Chats, and workflow execution sessions have different histories. Private messages are not automatically shared with everyone. `/share NAME REQUEST` shares the latest completed private exchange; `/handoff NAME TASK` sends the selected teammate's latest private answer. Wait for the latest reply before sharing, and choose another teammate as recipient.
 
-`/crew-task` carries the current Crew Chat findings into a workflow. It does not collect every private conversation. Include relevant decisions in the shared discussion or goal before execution. A plain approval or “continue” goes to its recipient AI; use explicit workflow commands when you need deterministic dispatch.
+`/crew-task` carries the current Crew Chat findings into a workflow. It does not collect every private conversation. Include relevant decisions in the shared discussion or goal before execution. Shared plain approvals and continuation requests are interpreted against the current conversation and assignments; private sends normally stay with their recipient. Use explicit workflow commands when you need deterministic dispatch.
 
 If there is no discussion to execute, start `/discuss TOPIC` first or use `/task GOAL` for a standalone workflow. If a discussion is active, wait for completion or explicitly stop it before starting its implementation plan.
 
 Context optimization and Activity previews can shorten text. Inspect full task details and original files for missing evidence; `/context off` disables optional context shortening for future requests. History remains saved, but not all of it is guaranteed to fit in each model request.
+
+Resumed private sessions rely on Codex history instead of replaying the saved transcript. Resumed discussion and lead-workflow sessions receive new or changed shared records; unchanged supplied records may be absent from the new prompt. This is expected. Fresh/replaced sessions receive a snapshot, and full records remain available through task details and saved exports. `/context off` disables optional clipping, not session deduplication or Codex's own context management. Use `/new` for a fresh private conversation when needed, and explicitly include any requirements you want carried into it.
 
 ## Saved state, storage, and path errors
 

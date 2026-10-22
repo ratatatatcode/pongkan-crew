@@ -2,6 +2,14 @@
 
 [README](../README.md) | [Command reference](COMMANDS.md) | [Security](../SECURITY.md)
 
+## Lead-led messages and incremental context
+
+Restart with `/restart` after updating. Crew Chat and Activity interpret ordinary requests through the lead: advice, greetings, and status normally get one read-only reply; work requests start a lead-led workflow with useful bounded delegation and independent review. Approvals can execute a discussed plan, waiting for active discussion to finish. Use `/discuss TOPIC` for two full read-only rounds and a lead summary, or explicitly request multiple teammates' perspectives for one round. Private chats and `@NAME` keep their explicit recipient, with interpretation when unfinished workflow work needs coordination.
+
+Resumed private sessions no longer replay their local transcript. Discussion and lead-workflow sessions skip unchanged shared records already supplied successfully to that session, while keeping the latest request, assignment, permissions, and clarification answers explicit. Optional per-session fingerprints persist in version-1 state; older state needs no migration and gets a normal snapshot first. Fresh or replaced sessions also get a snapshot. Full saved history and Markdown exports are preserved; clipping, session context, and token billing still apply. No sessions are reset automatically and no saved work resumes merely because source was updated.
+
+Failed workflow status is shorter in Chat, with full errors retained in Activity/details. Unavailable-access blockers require post-review operation evidence from an authorized writer when one exists; a failed reviewer check alone is insufficient. Independent review stays read-only.
+
 ## Project briefings and watch settings
 
 Restart Crew from the updated source, targeting the same project folder. `/briefing` is available immediately. State remains version 1: projects without watch settings load with watch off, a 09:00 machine-local briefing time, and empty notification and deduplication records. Existing tasks, conversations, schedules, and permissions are preserved; no history backfill or model call is needed.
@@ -34,7 +42,7 @@ The app uses a folder lock and atomic state replacement. Do not edit state while
 
 After updating recovery code, restart the app to load it. Existing execution records remain readable, including older error-category fields, but those fields no longer select recovery actions. New direct-task recovery decisions and their evidence are saved with the original task. Saved work remains paused on restart, and cancelled work is not resurrected. During active execution, direct turns and workflows handle failed turns automatically through AI assessment while retaining their selected permission modes.
 
-Ordinary sends now bypass intent interpretation entirely. Crew Chat goes to the designated lead; `@NAME` goes to the named teammate; private Chat goes to the selected teammate. Direct Developer turns retain write access. No automatic plan, revision, review, or summary is scheduled. Explicit workflow commands remain available. Restart after updating source; existing saved tasks, workflows, and messages remain intact. Old router input records remain readable but new sends use durable task and conversation records.
+Private sends and explicit mentions normally bypass classification, preserving the selected recipient and access. Shared ordinary requests use semantic routing, and unfinished workflow follow-ups can resume or correct existing assignments. Explicit workflow commands remain available. Existing saved tasks, workflows, messages, and router input records remain readable.
 
 ## Default coordinator migration
 

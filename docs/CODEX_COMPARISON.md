@@ -2,7 +2,7 @@
 
 [README](../README.md) | [Commands](COMMANDS.md) | [Walkthrough](TODO_WEBSITE_WALKTHROUGH.md)
 
-Codex CLI capabilities were checked on 2026-10-12 against installed CLI **0.162.1**, its command help, and official documentation; the Crew behavior column was updated on 2026-10-22. This is a capability comparison, not a quality, latency, or token-cost benchmark. Account, configuration, and version affect availability.
+Codex CLI capabilities were checked on 2026-10-12 against installed CLI **0.162.1**, its command help, and official documentation; the Crew behavior column was updated on 2026-10-23. This is a capability comparison, not a quality, latency, or token-cost benchmark. Account, configuration, and version affect availability.
 
 ## Native capabilities and Crew's additions
 
@@ -32,7 +32,7 @@ Codex's [command reference](https://learn.chatgpt.com/docs/developer-commands?su
 - A persistent lead that chooses bounded work and review actions without requiring users to arrange every handoff.
 - Saved workflow records and recovery of unfinished steps while preserving completed assignments.
 - Shared discussions and private teammate conversations in one project workspace.
-- Direct delivery of ordinary messages to the selected teammate AI, with shared conversation context and configured access. Explicit workflows provide saved assignments and task-boundary corrections.
+- Lead-led handling of shared messages: one reply for ordinary advice/status, bounded delegation for work, and full group discussion on explicit request. Private chats retain their own recipient and permissions.
 - Ready-made teams and explicit lead/reviewer identities.
 - Coordination of Crew-managed writers, with separate worktrees for isolated workflows.
 - Combined Markdown records, editable project guidance, recurring assignments, and GitHub issue-to-workflow commands.
@@ -43,8 +43,8 @@ These advantages primarily reduce setup and coordination effort. Names and perso
 ## Disadvantages and limits
 
 - The lead handles one next action at a time; this is not a parallel dependency graph. Independent eligible tasks or isolated workflows can still run through the scheduler.
-- Ordinary sends queue one recipient turn without an intent classifier or automatic workflow. Explicit crew discussions and workflows add turns. Their quality benefit and total cost have not been benchmarked.
-- Private and group sessions have separate context. Handoffs carry findings, available changed-file names, and answers, not every conversation. Long context may be shortened.
+- Ordinary shared messages add a routing call before a reply or workflow. Private sends and explicit mentions normally queue one recipient turn, while unfinished workflow follow-ups can require routing. Explicit discussions add rounds. Their quality benefit and total cost have not been benchmarked.
+- Private, discussion, and lead-workflow sessions have separate context. Resumed private chats avoid local transcript replay; shared sessions receive new or changed findings rather than unchanged supplied records. Fresh sessions get snapshots. Current instructions and answers remain explicit; long context may be shortened. Codex still maintains session context, so reduced wrapper input does not guarantee lower billed usage.
 - Corrections apply at task boundaries rather than interrupting the current Codex turn.
 - New lead workflows complete only after independent verification reports the requested outcome met. Older legacy workflows can retain earlier completion semantics; inspect their review reports and any unverified criteria.
 - Image attachments, native session forking, cost estimates, integration management, and cloud/remote controls are not exposed in Crew's interface. `/usage` shows saved reported tokens for newly measured turns; older or unreported usage remains unavailable. Model-turn budgets do not cap token usage or spending.

@@ -132,7 +132,7 @@ test('answer command preserves the exact routing question and original request f
 
 test('a collective conversation decision delivers one read-only reply per crew member', async t => {
   const app = setup(t, decision('discuss', { teamDiscussion: true, target: 'chief' }));
-  await execute(app, 'Hey, everyone! Good evening.');
+  await execute(app, 'Everyone, introduce yourselves in turn.');
   const tasks = app.crew.state.tasks;
   assert.deepEqual(
     tasks.map(task => task.member),
@@ -141,7 +141,7 @@ test('a collective conversation decision delivers one read-only reply per crew m
   assert.ok(tasks.every(task => task.readOnly && !task.discussionSummary));
   assert.equal(app.crew.state.workflows.length, 0);
   assert.equal(app.crew.discussions.current.messages.length, 1);
-  assert.equal(app.crew.discussions.current.messages[0].text, 'Hey, everyone! Good evening.');
+  assert.equal(app.crew.discussions.current.messages[0].text, 'Everyone, introduce yourselves in turn.');
   assert.equal(app.prompts.length, 1);
 });
 
@@ -158,7 +158,7 @@ test('collective replies respect the participants of a shared private exchange',
   const app = setup(t, decision('discuss', { teamDiscussion: true }));
   const chat = app.crew.discussions.newConversation();
   chat.participants = ['developer', 'reviewer'];
-  await execute(app, 'How are you both doing?');
+  await execute(app, 'Both of you, give your own recommendation.');
   assert.deepEqual(
     app.crew.state.tasks.map(task => task.member),
     ['developer', 'reviewer'],
@@ -183,7 +183,7 @@ test('semantic audience selection produces saved replies from every participant 
   // This compatibility test opts into interpretation; ordinary sends stay direct.
   crew.inputs.submit = crew.inputs.submitInterpreted.bind(crew.inputs);
   const app = { crew, view: 'group', selected: 'developer' };
-  for (const message of ['Hey, everyone! Good evening.', 'Can I get a quick wave from the whole room?']) {
+  for (const message of ['Everyone, introduce yourselves in turn.', 'Can I get a quick wave from the whole room?']) {
     await execute(app, message);
     const discussion = crew.discussions.current;
     await crew.queue.settled(discussion.taskIds.at(-1));

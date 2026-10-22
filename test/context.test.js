@@ -51,7 +51,7 @@ for (const optimized of [false, true]) {
   });
 }
 
-test('individual follow-ups include saved context even when resuming a session', async t => {
+test('individual follow-ups rely on resumed sessions and recover saved context for fresh sessions', async t => {
   const folder = mkdtempSync(join(tmpdir(), 'pongkan-context-resume-'));
   const prompts = [];
   const crew = new Crew(folder, {
@@ -70,8 +70,8 @@ test('individual follow-ups include saved context even when resuming a session',
   });
   await crew.send('developer', 'Suggest a navigation layout');
   await crew.send('developer', 'Proceed with that');
-  assert.match(prompts[1], /Suggest a navigation layout/);
-  assert.match(prompts[1], /Implement the orange navigation layout/);
+  assert.doesNotMatch(prompts[1], /Suggest a navigation layout/);
+  assert.doesNotMatch(prompts[1], /Implement the orange navigation layout/);
   assert.match(prompts[1], /Proceed with that/);
   crew.member('developer').threadId = null;
   crew
