@@ -4,6 +4,8 @@ import { PERSONALITIES } from './personality.js';
 import { CODEX_PERMISSION_MODES } from './codex-permissions.js';
 import { MAX_RECOVERY_ATTEMPTS, MAX_RECOVERY_STALLS, recoveryBoundary } from './recovery-policy.js';
 import { MAX_TURN_BUDGET } from './lead-execution.js';
+import { validUsage } from './usage.js';
+import { TEMPLATE_NAME } from './task-templates.js';
 const NAME = /^[a-z][a-z0-9-]{0,31}$/;
 const ID = /^[a-f0-9]{8}$/;
 const TASK_STATUS = new Set(['queued', 'running', 'waiting', 'completed', 'failed', 'cancelled', 'interrupted']);
@@ -61,6 +63,22 @@ export function validateState(state) {
     throw new Error('Invalid crew state. Back up .pongkan-crew/state.json before repairing it.');
   };
   if (!state || state.version !== 1 || !Array.isArray(state.members)) invalid();
+  if (state.usage !== undefined && !validUsage(state.usage)) invalid();
+  if (state.templates === undefined) state.templates = [];
+  if (
+    !Array.isArray(state.templates) ||
+    state.templates.length > 50 ||
+    state.templates.some(
+      entry =>
+        !entry ||
+        !TEMPLATE_NAME.test(entry.name) ||
+        typeof entry.text !== 'string' ||
+        !entry.text.trim() ||
+        entry.text.length > 8000,
+    ) ||
+    new Set(state.templates.map(entry => entry.name)).size !== state.templates.length
+  )
+    invalid();
   for (const member of state.members)
     if (member && member.codexPermissions === undefined) member.codexPermissions = 'approve';
   if (!membersValid(state.members)) invalid();
@@ -266,6 +284,7 @@ export function validateState(state) {
     new Set(state.workflows.map(f => f?.id)).size !== state.workflows.length
   )
     invalid();
+  if (state.tasks.some(task => task.usage !== undefined && !validUsage(task.usage))) invalid();
   for (const flow of state.workflows) {
     if (
       flow.limitations !== undefined &&

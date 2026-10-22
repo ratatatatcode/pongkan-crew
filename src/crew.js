@@ -6,6 +6,7 @@ import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { randomUUID } from 'node:crypto';
 import { codexExecutable } from './runtime.js';
+import { emptyUsage, reportedUsage, accumulateUsage } from './usage.js';
 import { TaskQueue } from './tasks.js';
 import { Workflows } from './workflows.js';
 import { captureWorkspace, compareWorkspace } from './diff.js';
@@ -428,6 +429,9 @@ export class Crew extends EventEmitter {
       turnDiff;
     const itemStarts = new Map();
     let lastProgressSave = 0;
+    const usage = emptyUsage();
+    usage.turns = 1;
+    let usageRecorded = false;
     const schemaPath = schema ? join(this.folder, '.pongkan-crew', `schema-${randomUUID()}.json`) : null;
     let recoveredContext = '';
     if (!shared && flow?.engine !== 'lead') {
@@ -474,6 +478,14 @@ export class Crew extends EventEmitter {
           `\n${text}`,
         event => {
           member.progress.events++;
+          if (event.type === 'turn.completed' && !usageRecorded) {
+            const report = reportedUsage(event.usage);
+            if (report) {
+              Object.assign(usage, report);
+              usage.reportedTurns = 1;
+              usageRecorded = true;
+            }
+          }
           if (event.type === 'item.completed' && event.item?.type === 'command_execution') {
             recordExecution(task, event.item, codexExecutionPolicy({ ...member, writable }), folder);
             this.save();
@@ -577,6 +589,8 @@ export class Crew extends EventEmitter {
       this.stableReaders.delete(runKey);
       this.runningFolders.delete(runKey);
       member.progress.finishedAt = Date.now();
+      usage.elapsedMs = Math.max(0, member.progress.finishedAt - member.progress.startedAt);
+      accumulateUsage(this.state, usage, task);
       if (before) {
         turnDiff = compareWorkspace(before, captureWorkspace(folder));
         this.state.lastDiff = turnDiff;

@@ -1,5 +1,33 @@
 # Pongkan Crew input and command reference
 
+## Reports, search, usage, and reusable tasks
+
+| Command                    | Purpose                                                                  | Example                                                                |
+| -------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| `/workflow report ID`      | Finished work, active assignments, blockers, acceptance, and next action | `/workflow report 08d7f22f`                                            |
+| `/workflow criteria ID`    | Requirements, status, and review evidence                                | `/workflow criteria 08d7f22f`                                          |
+| `/search TEXT`             | Search saved history and project memory                                  | `/search keyboard navigation`                                          |
+| `/usage [WORKFLOW_ID]`     | Reported tokens, measured turns, and cumulative turn time                | `/usage`                                                               |
+| `/template list`           | List saved task instructions                                             | `/template list`                                                       |
+| `/template save NAME TEXT` | Save instructions, optionally using `{{goal}}`                           | `/template save fix Investigate {{goal}}, fix it, and request review.` |
+| `/template show NAME`      | Read full saved instructions                                             | `/template show fix`                                                   |
+| `/template run NAME GOAL`  | Start a workflow with saved instructions                                 | `/template run fix keyboard navigation`                                |
+| `/template delete NAME`    | Explicitly remove saved instructions                                     | `/template delete fix`                                                 |
+| `/worktree review ID`      | Preview readiness against the current project HEAD                       | `/worktree review 08d7f22f`                                            |
+| `/commands [QUERY]`        | Search descriptions and fill the prompt with a command                   | `/commands reported tokens`                                            |
+
+Replace example IDs with IDs from `/workflow list`. Reports distinguish execution progress from independent acceptance. Invalidated criteria remain historical until reviewed again; missing criteria remain explicitly unverified. Task and workflow detail panels include continuation guidance.
+
+Search is literal and case insensitive. It covers saved private chats, named and archived conversations, recoverable archives, discussions, workflow requirements, task results/errors, and project memory. It stops after 40 matches with IDs and short excerpts. Narrow the query for more specific results. It does not call a model or search source files.
+
+Project usage includes routing and direct chat; workflow usage includes only its assignment turns. Totals cover newly measured turns; older and unreported tokens are unavailable. Cached input is included in input tokens. Cumulative turn time includes failed attempts and can overlap across parallel turns. Usage is not a cost estimate or spending limit; model-turn budgets keep their current behavior.
+
+Templates persist per project: at most 50 entries, each up to 8,000 characters. Names begin with a lowercase letter and contain lowercase letters, digits, or hyphens, up to 32 characters. Existing names require explicit deletion before replacement. `{{goal}}` inserts the run goal literally; otherwise the goal is appended. Expanded instructions are limited to 16,000 characters. Runs follow `/task` coordination, permissions, and current Crew Chat context.
+
+In the picker, type or paste to filter, use Up/Down to select, and press Enter to fill the prompt. Supply arguments before sending. Tab completes supported saved workflow/task/conversation IDs and template names. Activity keeps dispatch status, waiting counts, and the latest workflow's next action visible alongside live actions.
+
+Worktree review shows commits ahead/behind, status in both workspaces, tracked change statistics, overlapping files, and saved acceptance. It never merges branches. Uncommitted/untracked files are excluded from branch merges; inspect them separately. File overlap is a readiness hint, not a merge simulation or conflict-free guarantee. Use `/worktree show ID` for the tracked diff.
+
 ## Markdown saving
 
 `/markdown on` enables exports of finished work and creates `docs/pongkan-docs/` in the selected project. `/markdown off` stops subsequent exports without deleting documents. `/markdown` reports the mode and destination. The setting persists per project and defaults to off.

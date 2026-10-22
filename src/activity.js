@@ -1,4 +1,26 @@
-import { clean } from './markdown.js';
+import { clean, renderMarkdown, wrapText } from './markdown.js';
+const renderedEvents = new WeakMap();
+
+export function activityRows(event, width, detailWidth, folder, names) {
+  const key = JSON.stringify([event.at, event.text, event.kind, event.detail, width, detailWidth, folder, names]);
+  const cached = renderedEvents.get(event);
+  if (cached?.key === key) return cached.rows;
+  const stamp = event.at ? new Date(event.at).toLocaleTimeString('en-GB', { hour12: false }) : 'ACTIVITY';
+  const style = activityStyle(event);
+  const rows = [
+    { text: `${stamp}  ${style.label}`, tone: style.tone },
+    ...renderMarkdown(event.text, width, { folder, names }).map(item => ({
+      ...item,
+      tone: item.tone === 'body' ? style.tone : item.tone,
+    })),
+    ...(event.detail
+      ? wrapText(event.detail, detailWidth, true).map(text => ({ text: '  ' + text, tone: 'muted' }))
+      : []),
+    { text: '', tone: 'body' },
+  ];
+  renderedEvents.set(event, { key, rows });
+  return rows;
+}
 const bounded = (value, limit = 1200) => {
   const text = clean(value || '');
   return text.length > limit

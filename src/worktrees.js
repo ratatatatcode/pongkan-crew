@@ -63,4 +63,58 @@ export class Worktrees {
       await this.git(['diff', flow.baseCommit || 'HEAD', '--'], folder),
     ].join('\n');
   }
+  async review(id) {
+    const flow = this.crew.workflows.get(id);
+    if (!flow.workspace) throw new Error('This workflow has no isolated worktree.');
+    const folder = this.verify(flow);
+    const [target, source, status, targetStatus] = await Promise.all([
+      this.git(['rev-parse', '--verify', 'HEAD']),
+      this.git(['rev-parse', '--verify', 'HEAD'], folder),
+      this.git(['status', '--short'], folder),
+      this.git(['status', '--short']),
+    ]);
+    const base = await this.git(['merge-base', target, source], folder);
+    const [changed, targetChanged, summary, commits] = await Promise.all([
+      this.git(['diff', '--name-only', '-z', base, '--'], folder),
+      this.git(['diff', '--name-only', '-z', base, target, '--']),
+      this.git(['diff', '--stat', base, '--'], folder),
+      this.git(['rev-list', '--left-right', '--count', `${target}...${source}`], folder),
+    ]);
+    const targetFiles = new Set(targetChanged.split('\0').filter(Boolean));
+    const overlapping = changed.split('\0').filter(path => targetFiles.has(path));
+    const [behind, ahead] = commits.split(/\s+/);
+    const active = this.crew.state.tasks.some(task => task.workflowId === id && task.status === 'running');
+    const warnings = [
+      ...(active ? ['An assignment is running; changes may still be in progress.'] : []),
+      ...(status
+        ? ['Isolated worktree has uncommitted or untracked changes; these are excluded from a branch merge.']
+        : []),
+      ...(targetStatus ? ['Target workspace has uncommitted or untracked changes.'] : []),
+      ...(overlapping.length ? [`Both sides changed: ${overlapping.join(', ')}. Inspect for conflicts.`] : []),
+    ];
+    return [
+      `Workflow: ${id} · ${flow.status}`,
+      `Branch: ${flow.branch}`,
+      `Folder: ${folder}`,
+      `Target: current project HEAD ${target}`,
+      `Source HEAD: ${source}`,
+      `Commits ahead: ${ahead}; behind: ${behind}`,
+      `Readiness: ${warnings.length ? 'needs inspection' : ahead === '0' ? 'no committed changes to merge' : 'no obvious blockers detected'}`,
+      ...warnings,
+      'Preview only: file overlap is not a merge simulation. No conflict-free merge is guaranteed.',
+      '',
+      'ISOLATED STATUS',
+      status || '(clean)',
+      '',
+      'TARGET STATUS',
+      targetStatus || '(clean)',
+      '',
+      'CHANGES SINCE COMMON ANCESTOR (includes tracked local edits)',
+      summary || '(none)',
+      '',
+      'ACCEPTANCE',
+      `Outcome: ${flow.outcome || 'unverified'}; /workflow criteria ${id}`,
+      `Inspect full tracked diff: /worktree show ${id}. Inspect untracked file contents separately.`,
+    ];
+  }
 }

@@ -142,6 +142,28 @@ Use `/crew-task` after the discussion finishes to execute with its shared findin
 
 GitHub commands require an authenticated GitHub CLI (`gh`). They do not automatically commit, push, or open PRs. Isolated workflows start from committed `HEAD` and retain their branches and worktrees for review.
 
+### Reports, search, usage, and task templates
+
+Use `/workflow report ID` for finished assignments, current work, blockers, review evidence, and the next action. `/workflow criteria ID` shows each saved requirement, its pass/fail/unverified status, and the review evidence. Execution progress and acceptance are shown separately; older workflows without criteria remain explicitly unverified. `/queue show ID` and `/workflow show ID` also include continuation guidance.
+
+`/search TEXT` searches this project's saved private chats, named and archived conversations, recoverable archives, discussions, workflow requirements, task results, and project memory. Search is literal and case insensitive. Results include record IDs and short excerpts, stop after 40 matches, and never call a model. Narrow the query if results are truncated. Use `/conversation open ID`, `/queue show ID`, `/workflow show ID`, `/archives`, or `/memory show` to inspect the full source.
+
+`/usage` shows project totals, including routing and direct chat; `/usage WORKFLOW_ID` shows only that workflow's assignment turns. Usage is saved for future turns when Codex reports input, cached input, and output tokens. Cached input is already included in input tokens. Missing and older usage is unavailable, not estimated. Cumulative turn time includes failed attempts and can overlap during parallel execution. Workflow model-turn budgets remain separate from token totals and do not impose a spending limit.
+
+```text
+/template save fix Investigate {{goal}}, implement the correction, and request independent review.
+/template run fix Keyboard navigation skips the last item
+/template list
+/template show fix
+/template delete fix
+```
+
+Templates are project specific and survive restart. Save up to 50 named templates, each up to 8,000 characters. Names start with a lowercase letter and contain lowercase letters, digits, or hyphens. Existing names must be explicitly deleted before replacement. `{{goal}}` inserts the run goal literally; without it, the goal is appended. Expanded instructions are limited to 16,000 characters. Running a template follows `/task` coordination and permissions, including the current Crew Chat context.
+
+`/commands [QUERY]` opens a command picker. Type to filter descriptions, use Up/Down to select, and press Enter to fill the prompt. Supply arguments before sending the command. Tab completes saved workflow/task/conversation IDs and template names where supported. Activity now keeps dispatch status, waiting counts, and the latest workflow's next step visible while showing live actions. Unchanged Activity events reuse rendered rows.
+
+`/worktree review ID` previews an isolated workflow against the current project HEAD. It shows commits ahead/behind, tracked change statistics, local status in both workspaces, overlapping files, and saved acceptance. It does not merge or modify either branch. Uncommitted and untracked files do not participate in a branch merge. This is a readiness preview using file overlap, not a merge simulation or a guarantee of a conflict-free merge. Use `/worktree show ID` for the tracked diff and inspect untracked files separately.
+
 ### Video clipping crew
 
 Use `/preset show clipper` to preview or `/preset apply clipper` to select the Facebook and YouTube video crew. Video-producer coordinates Footage-analyst, Video-editor, Captioner, Copywriter, and a read-only Video-reviewer.
