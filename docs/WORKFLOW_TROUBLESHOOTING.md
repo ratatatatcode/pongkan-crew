@@ -325,6 +325,10 @@ For an invalid `project-memory.json`, back it up and repair its expected entries
 
 ## Terminal input, scrolling, and panels
 
+The window/tab title uses a bouncing `[=   ]` meter while Crew has active turns and static Ready, Queued, Paused, or Needs your answer labels otherwise. Only actual running work animates; waiting questions and paused queues do not create a loading animation. Worker terminals use the same title when attached to a terminal. The title does not contain task prompts or responses.
+
+If it is missing from the Windows taskbar, check whether the terminal groups windows, hides labels, or overrides application titles with a fixed tab name. The same title is used for the top window/tab label; exact taskbar presentation is controlled by the terminal and Windows. `TERM=dumb`, redirected output, preview, and doctor modes leave titles unchanged. Restart Crew to load title changes. It restores the previous host title on normal exit/restart where the terminal supports title restoration.
+
 Use PgUp/PgDn to scroll history or an open panel. Close a panel with Escape or `/close`; use F2 to change views. A history offset can hide new output until you scroll back toward the latest messages. The task can keep running while you browse a panel.
 
 Enter sends the entire prompt; Shift+Enter inserts a newline. Up/Down moves within wrapped input and browses history beyond its boundaries. Tab may complete a command or cycle teammates depending on input context. Use explicit `/chat NAME`, `/group`, and `/activity` commands if shortcuts are intercepted by the terminal.

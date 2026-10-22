@@ -180,6 +180,8 @@ This preset supplies specialist instructions, not an upload interface or bundled
 
 ## Keyboard controls
 
+The terminal title shows Pongkan Crew, the project folder name, and its status. While teammates work, a small meter moves back and forth: `[=   ]`, `[ =  ]`, `[  = ]`, `[   =]`. Idle, queued, paused, and waiting-for-answer states use static markers instead. The title can also appear in the terminal tab and Windows taskbar label, depending on the host and grouping settings. Exiting or restarting restores the previous host title where supported. Redirected output, previews, doctor mode, and `TERM=dumb` do not emit animated titles.
+
 Rotating tips appear below the command/status line every 30 seconds while the CLI is open. They include project briefings, watch settings and inbox, recurring inspections, review evidence, and command discovery. Use `/help briefing`, `/help watch`, or `/commands watch` to find the related commands immediately.
 
 | Key                       | Action                                                                     | Sample usage                                      |

@@ -19,6 +19,7 @@ import { answerShortcut } from './answer-shortcut.js';
 import { TerminalRenderer, scheduleRender } from './terminal-renderer.js';
 import { sourceChanged } from './source-version.js';
 import { launchRestart } from './restart.js';
+import { startTerminalTitle } from './terminal-title.js';
 
 const args = process.argv.slice(2);
 const help = `Pongkan Crew — folder-specific Codex teammates
@@ -86,6 +87,8 @@ async function main() {
     if (!diagnostics.ok) process.exitCode = 1;
     return;
   }
+  const stopTitle = startTerminalTitle(crew, process.stdout);
+  process.once('exit', stopTitle);
   if (worker) {
     const controller = new AbortController();
     const stop = () => controller.abort();
@@ -100,6 +103,8 @@ async function main() {
       process.removeListener('SIGINT', stop);
       process.removeListener('SIGTERM', stop);
       crew.removeListener('watch', logWatch);
+      stopTitle();
+      process.removeListener('exit', stopTitle);
       await crew.close();
       release();
     }
@@ -149,6 +154,8 @@ async function main() {
     closing = true;
     render.cancel();
     clearInterval(ticker);
+    stopTitle();
+    process.removeListener('exit', stopTitle);
     stopInput();
     if (usingStdin) {
       process.stdin.setRawMode(false);
