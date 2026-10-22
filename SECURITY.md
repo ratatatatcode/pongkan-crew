@@ -22,6 +22,8 @@ Default and preset crews record explicit lead/reviewer identities. Coordinator r
 
 State writes and folder locks reject symlink/junction state directories and linked or non-regular state files. State replacement uses an exclusively created random temporary file and atomic rename; rename failures never delete the existing state as a workaround. New directories/files request owner-only modes on platforms supporting Unix permissions. Windows permissions follow inherited ACLs. These checks defend against pre-existing redirected paths, not concurrent path replacement by another process with the same account privileges. Do not share a writable workspace with untrusted processes.
 
+Markdown conversation exports can contain private prompts and responses. On Linux, the exporter restricts the `docs/pongkan-docs` directory to its owner and writes export files with owner-only permissions. On Windows, exports follow inherited ACLs; review the selected project's ACLs before enabling Markdown export in a shared folder.
+
 ## Shared context and review
 
 `/recovery [WORKFLOW_ID]` explicitly renews a failed workflow's bounded recovery budget; it does not grant additional filesystem or approval permissions. It preserves original completed steps, reconnects unfinished original dependencies around obsolete recovery branches, and resumes only that workflow's dispatch scope. The coordinator can choose a writable prerequisite repair only within an existing writable implementation workflow, using the selected teammate's current permission mode. Read-only workflows remain read-only, and active or completed workflows are not restarted by this command.
