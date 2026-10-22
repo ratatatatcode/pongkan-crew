@@ -2,7 +2,7 @@ import { structuredOutput } from './structured-output.js';
 export const VERIFICATION_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['outcome', 'criteria', 'summary'],
+  required: ['outcome', 'criteria', 'summary', 'limitations'],
   properties: {
     outcome: { type: 'string', enum: ['met', 'needs_work', 'unverified'] },
     criteria: {
@@ -21,6 +21,7 @@ export const VERIFICATION_SCHEMA = {
       },
     },
     summary: { type: 'string' },
+    limitations: { type: 'array', maxItems: 12, items: { type: 'string', minLength: 1, maxLength: 4000 } },
   },
 };
 
@@ -30,6 +31,10 @@ export function verificationResult(task) {
     !['met', 'needs_work', 'unverified'].includes(report.outcome) ||
     typeof report.summary !== 'string' ||
     !Array.isArray(report.criteria) ||
+    (report.limitations !== undefined &&
+      (!Array.isArray(report.limitations) ||
+        report.limitations.length > 12 ||
+        report.limitations.some(value => typeof value !== 'string' || !value.trim() || value.length > 4000))) ||
     report.criteria.length < 1 ||
     report.criteria.length > 12 ||
     report.criteria.some(
@@ -53,10 +58,14 @@ export function verificationResult(task) {
   return {
     outcome,
     criteria: report.criteria,
+    limitations: report.limitations || [],
     text: [
       `Requested outcome: ${outcome.replace('_', ' ')}`,
       report.summary,
       ...report.criteria.map(criterion => `- ${criterion.requirement}: ${criterion.status}. ${criterion.evidence}`),
+      ...(report.limitations?.length
+        ? [`Review limitations:\n${report.limitations.map(value => `- ${value}`).join('\n')}`]
+        : []),
       ...(!inspected
         ? ['No independent inspection evidence was recorded; teammate reports alone do not verify completion.']
         : []),

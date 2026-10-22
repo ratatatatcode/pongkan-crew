@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Crew, buildArgs } from '../src/crew.js';
+import { Crew, buildArgs } from './helpers/legacy-crew.js';
 import { execute } from '../src/commands.js';
 import { readModelCatalog, validateModelChoice } from '../src/models.js';
 import { screen } from '../src/ui.js';

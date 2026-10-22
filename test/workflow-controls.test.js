@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Workflows } from '../src/workflows.js';
 
 function fixture() {
-  const flow = { id: '1234abcd', text: 'Build a feature', status: 'working', createdAt: Date.now() };
+  const flow = { id: '1234abcd', engine: 'legacy', text: 'Build a feature', status: 'working', createdAt: Date.now() };
   const running = { id: 'aaaa1111', workflowId: flow.id, member: 'developer', status: 'running', kind: 'work' };
   const queued = { id: 'bbbb2222', workflowId: flow.id, member: 'reviewer', status: 'queued', kind: 'review' };
   const completed = { id: 'cccc3333', workflowId: flow.id, member: 'developer', status: 'completed', kind: 'work' };

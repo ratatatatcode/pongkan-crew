@@ -57,6 +57,7 @@ export const COMMAND_EXAMPLES = {
   '/workflow show': '/workflow show WORKFLOW_ID',
   '/workflow cancel': '/workflow cancel WORKFLOW_ID',
   '/workflow resume': '/workflow resume WORKFLOW_ID',
+  '/workflow budget': '/workflow budget WORKFLOW_ID 96',
   '/workflow retry': '/workflow retry WORKFLOW_ID',
   '/clear': '/clear (selected transcript only; /undo recovers it)',
   '/new': '/new (selected session; /undo recovers local history)',

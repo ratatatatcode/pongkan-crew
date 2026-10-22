@@ -1,7 +1,7 @@
 import { wrapText, fitText, renderMarkdown } from './markdown.js';
 import { layoutInput } from './input.js';
 import { activityStyle } from './activity.js';
-import { displayMessages } from './conversations.js';
+import { displayMessages, readableReply } from './conversations.js';
 import { roleRows, isRoleHeading } from './role-display.js';
 import { workflowFeed } from './workflow-feed.js';
 import { inputStatus } from './input-router.js';
@@ -30,7 +30,7 @@ export function cliTip(now = Date.now()) {
   return `Tip: ${CLI_TIPS[Math.floor(now / 30000) % CLI_TIPS.length]}`;
 }
 function messageBody(message, width, folder, speaker, names) {
-  let text = message.text;
+  let text = message.role === 'assistant' ? readableReply(message.text) : message.text;
   const namesKey = JSON.stringify(names);
   if (message.role === 'assistant' && speaker) {
     const trimmed = text.trimStart();
@@ -106,11 +106,27 @@ export function screen(
       folder: crew.folder,
       names: crew.state.members.map(member => member.name),
     }),
+    ...(request.answeredAt
+      ? [
+          row(''),
+          row('Your response', 'user'),
+          ...renderMarkdown(request.answer || '', readingWidth, { folder: crew.folder }),
+        ]
+      : []),
     ...(!request.answeredAt ? [row(''), row('Shift+Right: answer | Enter or Shift+Left: send', 'selected')] : []),
   ];
-  const conversation = (
-    view === 'chat' && !panel ? displayMessages(member, crew.state.tasks, crew.state.workflows) : []
-  ).flatMap(m => {
+  const messages = view === 'chat' && !panel ? displayMessages(member, crew.state.tasks, crew.state.workflows) : [];
+  const answerRows = answer => [
+    row('Question · Answered', 'heading'),
+    ...renderMarkdown(answer.question, readingWidth, { folder: crew.folder }),
+    row(''),
+    row('Your response', 'user'),
+    ...renderMarkdown(answer.answer, readingWidth, { folder: crew.folder }),
+    row(''),
+    row(''),
+  ];
+  const conversation = messages.flatMap(m => {
+    if (m.clarification) return answerRows(m.clarification);
     const label = m.role === 'user' ? 'You' : m.role === 'assistant' ? nameLabel(selected) : 'System';
     const body = messageBody(
       m,
@@ -121,6 +137,19 @@ export function screen(
     );
     return [row(label, m.role), ...body, row(''), row('')];
   });
+  if (view === 'chat' && !panel)
+    for (const task of crew.state.tasks || []) {
+      if (
+        task.member !== selected ||
+        task.discussionId ||
+        (task.conversationId || null) !== (crew.state.activeConversations?.[selected] || null)
+      )
+        continue;
+      const flow = crew.state.workflows?.find(flow => flow.id === task.workflowId);
+      if (flow?.sourceDiscussionId || flow?.sourceConversationId) continue;
+      for (const answer of task.answers || [])
+        if (!messages.some(message => message.clarification === answer)) conversation.push(...answerRows(answer));
+    }
   if (!conversation.length)
     conversation.push(
       row(`Say hello to ${selected}.`, 'heading'),
@@ -187,7 +216,9 @@ export function screen(
         ],
       });
     }
-    for (const flow of crew.state.workflows || []) {
+    for (const task of crew.state.tasks || []) {
+      const flow = crew.state.workflows?.find(flow => flow.id === task.workflowId);
+      if (!flow) continue;
       if (!flow.sourceDiscussionId && !flow.sourceConversationId) continue;
       if (!discussion && !crew.state.activeGroupConversation) continue;
       const rows = workflowFeed(crew, readingWidth, crew.state.activeGroupConversation, {
@@ -195,8 +226,10 @@ export function screen(
         discussionId: discussion?.id,
         priorDiscussionIds: discussion?.priorDiscussionIds,
         workflowId: flow.id,
+        taskId: task.id,
       });
-      if (rows.length) timeline.push({ at: flow.createdAt || 0, rows });
+      if (rows.length)
+        timeline.push({ at: task.finishedAt || task.startedAt || task.createdAt || flow.createdAt || 0, rows });
     }
     const inputs = (crew.state.inputs || []).filter(
       input => input.view === 'group' && input.conversationId === (crew.state.activeGroupConversation || null),
@@ -369,13 +402,29 @@ export function screen(
     ];
   let panelPosition = '';
   if (panel) {
-    const lines = panel.getRows
-      ? panel.getRows(Math.min(92, contentWidth - 4))
-      : (panel.getLines ? panel.getLines() : panel.lines).flatMap(line =>
-          wrap(line, Math.min(92, contentWidth - 4), /DIFF/.test(panel.title)).map(text =>
-            row(text, !/DIFF/.test(panel.title) && isRoleHeading(text) ? 'heading' : 'body'),
-          ),
-        );
+    const draft = panel.kind === 'answer' ? input.match(/^\/answer\s+(\S+)(?:\s([\s\S]*))?$/) : null;
+    const lines =
+      panel.kind === 'answer'
+        ? [
+            row('Question', 'heading'),
+            ...renderMarkdown(panel.question, Math.min(92, contentWidth - 4), { folder: crew.folder }),
+            row(''),
+            row('Your response', 'user'),
+            ...renderMarkdown(
+              draft?.[1] === panel.questionId ? draft[2] || '(Type your response below)' : '(Type your response below)',
+              Math.min(92, contentWidth - 4),
+              { folder: crew.folder },
+            ),
+            row(''),
+            row('Enter or Shift+Left: send | Shift+Right: next question | Esc: close', 'muted'),
+          ]
+        : panel.getRows
+          ? panel.getRows(Math.min(92, contentWidth - 4))
+          : (panel.getLines ? panel.getLines() : panel.lines).flatMap(line =>
+              wrap(line, Math.min(92, contentWidth - 4), /DIFF/.test(panel.title)).map(text =>
+                row(text, !/DIFF/.test(panel.title) && isRoleHeading(text) ? 'heading' : 'body'),
+              ),
+            );
     panel.maxOffset = Math.max(0, lines.length - height);
     panel.offset = panel.followLatest ? panel.maxOffset : Math.min(Math.max(0, panel.offset || 0), panel.maxOffset);
     visible = lines.slice(panel.offset, panel.offset + height);

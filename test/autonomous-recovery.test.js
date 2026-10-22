@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Crew } from '../src/crew.js';
+import { Crew } from './helpers/legacy-crew.js';
 import { validateState } from '../src/state.js';
 import { MAX_RECOVERY_ATTEMPTS } from '../src/recovery-policy.js';
 
@@ -256,4 +256,37 @@ test('independent verification failures trigger repair and reinspection before c
   assert.equal(reviews, 2);
   assert.ok(calls.find(call => call.task.repairFor));
   assert.equal(calls.filter(call => call.task.kind === 'summary').length, 1);
+});
+
+test('unchanged failed requirements stop recovery despite fresh inspection output', async t => {
+  let reviews = 0;
+  const { crew } = setup(t, ({ task, event }) => {
+    if (task.kind === 'plan') return plan;
+    if (task.recoveryFor) return repair;
+    if (task.kind === 'review') {
+      event({
+        type: 'item.completed',
+        item: {
+          type: 'command_execution',
+          command: 'inspect-deliverables',
+          exit_code: 0,
+          aggregated_output: `Inspection ${++reviews}: final export still missing`,
+        },
+      });
+      return {
+        outcome: 'needs_work',
+        summary: `Inspection ${reviews}`,
+        criteria: [{ requirement: 'Finished video export', status: 'fail', evidence: `Check ${reviews}: missing` }],
+      };
+    }
+    return 'Updated handoff notes.';
+  });
+  const flow = crew.workflows.start('Create the finished video', { requiresWrite: true });
+  await crew.workflows.settled(flow.id);
+  assert.equal(flow.status, 'failed');
+  assert.equal(flow.recoveryAttempts, 2);
+  assert.equal(reviews, 3);
+  assert.match(flow.error, /Finished video export/);
+  assert.match(flow.error, /without new evidence/);
+  assert.doesNotThrow(() => validateState(structuredClone(crew.state)));
 });

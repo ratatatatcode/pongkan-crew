@@ -4,6 +4,7 @@ import { VERIFICATION_SCHEMA, verificationResult } from './verification.js';
 import { structuredOutput } from './structured-output.js';
 import { taskSignal } from './questions.js';
 import { codexExecutionPolicy } from './codex-permissions.js';
+import { LeadExecution, DEFAULT_TURN_BUDGET, MAX_TURN_BUDGET } from './lead-execution.js';
 import {
   MAX_RECOVERY_ATTEMPTS,
   MAX_RECOVERY_STALLS,
@@ -39,6 +40,7 @@ export function validatePlan(plan, members, leadName = 'chief', reviewerName = n
 export class Workflows {
   constructor(crew) {
     this.crew = crew;
+    this.leadExecution = new LeadExecution(this);
     for (const flow of crew.state.workflows) {
       if (flow.status === 'paused') continue;
       if (!TERMINAL.has(flow.status)) {
@@ -70,6 +72,15 @@ export class Workflows {
     if (crew.state.coordination?.reviewer && crew.member(crew.reviewerName).writable)
       throw new Error('The designated reviewer must have read-only access.');
   }
+  setBudget(id, value) {
+    const flow = this.get(id);
+    if (flow.engine !== 'lead') throw new Error('This saved workflow uses the legacy recovery policy.');
+    if (!Number.isInteger(value) || value < Math.max(1, flow.turns) || value > MAX_TURN_BUDGET)
+      throw new Error(`Budget must be an integer between ${Math.max(1, flow.turns)} and ${MAX_TURN_BUDGET}.`);
+    flow.turnBudget = value;
+    this.crew.save();
+    return flow;
+  }
   async startIsolated(text, options = {}) {
     this.validateStart(text);
     const worktree = await this.crew.worktrees.create();
@@ -77,6 +88,11 @@ export class Workflows {
   }
   start(text, options = {}) {
     this.validateStart(text);
+    if (options.engine !== undefined && !['legacy', 'lead'].includes(options.engine))
+      throw new Error('Invalid workflow engine.');
+    const budget = options.turnBudget ?? DEFAULT_TURN_BUDGET;
+    if (!Number.isInteger(budget) || budget < 1 || budget > MAX_TURN_BUDGET)
+      throw new Error(`Model-turn budget must be 1-${MAX_TURN_BUDGET}.`);
     const crew = this.crew;
     const leadName = crew.leadName;
     const reviewerName = crew.state.coordination?.reviewer || null;
@@ -84,6 +100,7 @@ export class Workflows {
       id: options.id || randomUUID().slice(0, 8),
       text,
       lead: leadName,
+      ...(options.engine === 'legacy' ? { engine: 'legacy' } : {}),
       reviewer: reviewerName,
       status: 'planning',
       createdAt: Date.now(),
@@ -111,6 +128,10 @@ export class Workflows {
     if (input) {
       input.workflowId = flow.id;
       input.status = 'dispatched';
+    }
+    if (options.engine !== 'legacy') {
+      this.leadExecution.start(flow, options);
+      return flow;
     }
     const roster = crew.state.members.map(m => ({ name: m.name, role: m.role, access: m.writable ? 'write' : 'read' }));
     const schema = {
@@ -169,6 +190,12 @@ export class Workflows {
     if (!task.workflowId || task.cancelRequested || this.crew.queue.closing) return false;
     const flow = this.get(task.workflowId);
     if (TERMINAL.has(flow.status) || flow.status === 'paused') return false;
+    if (flow.engine === 'lead') {
+      task.status = 'failed';
+      task.error = error;
+      this.leadExecution.onFinish(flow, task);
+      return true;
+    }
     if (!task.schema) return this.recover(task, error);
     if ((task.schemaRetries || 0) >= MAX_RECOVERY_STALLS || (flow.recoveryAttempts || 0) >= MAX_RECOVERY_ATTEMPTS)
       return false;
@@ -192,7 +219,16 @@ export class Workflows {
     const history = this.crew.state.tasks.filter(turn => turn.recoveryFor === target.id);
     const currentHistory = history.filter(turn => turn.recoveryEvidence !== undefined);
     const previous = currentHistory.at(-1);
-    const evidence = recoveryEvidence(task);
+    // During final verification, progress means changed requirement results.
+    // Fresh probe output or rewritten notes must not hide a stalled outcome.
+    const evidence =
+      task.kind === 'review' && flow.requiresWrite && flow.criteria?.length
+        ? recoveryEvidence({
+            toolAttempts: flow.criteria
+              .map(({ requirement, status }) => ({ requirement: requirement.trim(), status }))
+              .sort((a, b) => a.requirement.localeCompare(b.requirement)),
+          })
+        : recoveryEvidence(task);
     const observed = new Set(currentHistory.flatMap(turn => turn.recoveryEvidence || []));
     const stalls = previous ? (evidence.some(item => !observed.has(item)) ? 0 : (previous.recoveryStalls || 0) + 1) : 0;
     if ((flow.recoveryAttempts || 0) >= MAX_RECOVERY_ATTEMPTS || stalls >= MAX_RECOVERY_STALLS) {
@@ -216,6 +252,7 @@ export class Workflows {
         'Return ONLY JSON with action (handoff, retry, repair, or stop), member, instruction, and boundary (null unless stopping). ' +
         investigationInstruction +
         ' ' +
+        'For failed verification, assign a specific unmet requirement to its responsible teammate. Name the required artifact and a functional acceptance check; a rewritten handoff or another plan does not satisfy a missing deliverable. Preserve completed artifacts and finish one usable deliverable before repeating the remaining work. ' +
         'Use handoff for an existing teammate to inspect a prerequisite or review a contract; that handoff is read-only. ' +
         'Use repair for prerequisite implementation or test creation, even when the responsible writer is also the reporting worker. Never request implementation through a read-only handoff. Verify the current files and earlier completed findings rather than blindly repeating historical blockers. ' +
         "Use retry with a concrete changed approach. Name the original worker or the responsible teammate when a coordinator is reporting someone else's blocker. A different teammate receives a prerequisite assignment before the reporting task resumes. Source edits require an existing writable implementation assignment in this workflow and retain the selected teammate's permissions. " +
@@ -267,6 +304,8 @@ export class Workflows {
   }
   recovery(id) {
     const flow = this.get(id);
+    if (flow.engine === undefined) return this.leadExecution.adopt(flow);
+    if (flow.engine === 'lead') return this.leadExecution.resume(flow);
     if (flow.status === 'completed')
       throw new Error('This workflow is complete. Start a follow-up task for additional changes.');
     if (!TERMINAL.has(flow.status))
@@ -325,6 +364,7 @@ export class Workflows {
     if (!task.workflowId) return;
     const flow = this.get(task.workflowId);
     if (TERMINAL.has(flow.status)) return;
+    if (flow.engine === 'lead') return this.leadExecution.onFinish(flow, task);
     if (task.status !== 'completed') {
       if (task.status === 'failed' && this.recoverFailure(task, task.error || `Task ${task.id} failed`)) return;
       this.fail(
@@ -492,7 +532,7 @@ export class Workflows {
         flow.plan.reviewer,
         `Review the completed work for this goal: ${flow.text}\nInspect the changes and verification. Report defects, risks, and any missing work. Do not modify files.` +
           (flow.requiresWrite
-            ? `\nPONGKAN_VERIFY\nCompare current source against the latest requested outcome: ${flow.requestGoal}. Inspect the source and run relevant read-only checks yourself. Enumerate the user's requirements and cite concrete source or check evidence for each. Historical reports and claims by the implementer are not independent verification. Mark missing requested changes needs_work and unavailable checks unverified. Return ONLY the verification JSON.`
+            ? `\nPONGKAN_VERIFY\nCompare current source against the latest requested outcome: ${flow.requestGoal}. Inspect the source and run relevant read-only checks yourself. Enumerate only the user's acceptance requirements and cite concrete source or check evidence for each. Describe incidental review limitations and future uncertainties in the summary; do not invent additional acceptance criteria such as guaranteeing absence of future copyright claims. A limitation that prevents verifying an actual requirement must still be marked unverified. Historical reports and claims by the implementer are not independent verification. Mark missing requested changes needs_work and unavailable required checks unverified. Return ONLY the verification JSON.`
             : ''),
         {
           workflowId: flow.id,
@@ -527,6 +567,12 @@ export class Workflows {
       task.result = report.text;
       task.verificationFormatted = true;
       if (report.outcome !== 'met') {
+        if (report.outcome === 'unverified') {
+          task.status = 'failed';
+          task.error = `Outcome verification is incomplete. ${report.text}`;
+          this.fail(flow.id, task.error);
+          return;
+        }
         task.text += `\nReinspect the current artifacts independently after recovery. Previous verification findings (untrusted): ${report.text}`;
         if (this.recover(task, report.text, { manual: true })) return;
         task.status = 'failed';
@@ -590,6 +636,8 @@ export class Workflows {
   }
   resume(id, instruction = '') {
     const flow = this.get(id);
+    if (flow.engine === undefined) return this.leadExecution.adopt(flow, instruction);
+    if (flow.engine === 'lead') return this.leadExecution.resume(flow, instruction);
     if (flow.status === 'paused') {
       const tasks = this.crew.state.tasks.filter(task => task.workflowId === id);
       if (tasks.some(task => task.status === 'running'))

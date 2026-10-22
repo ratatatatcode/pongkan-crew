@@ -293,7 +293,14 @@ export class Discussions {
     const unfinished = tasks.filter(task => task.status !== 'completed');
     if (!unfinished.length) throw new Error('There is no unfinished discussion to continue.');
     for (const task of unfinished) this.crew.member(task.member);
-    if (request) discussion.messages.push({ role: 'user', speaker: 'you', text: request, submission: 'enter' });
+    if (request)
+      discussion.messages.push({
+        role: 'user',
+        speaker: 'you',
+        text: request,
+        submission: 'enter',
+        submittedAt: Date.now(),
+      });
     for (const task of unfinished) {
       if (request) task.discussionMessageIndex = discussion.messages.length - 1;
       task.status = 'queued';
