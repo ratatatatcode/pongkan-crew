@@ -1,6 +1,7 @@
 import {
   closeSync,
   constants,
+  fchmodSync,
   fstatSync,
   mkdirSync,
   openSync,
@@ -54,7 +55,7 @@ function pinnedDirectory(folder, action) {
     for (const segment of ['docs', 'pongkan-docs']) {
       const child = `/proc/self/fd/${descriptor}/${segment}`;
       try {
-        mkdirSync(child);
+        mkdirSync(child, segment === 'pongkan-docs' ? { mode: 0o700 } : undefined);
       } catch (error) {
         if (error.code !== 'EEXIST') throw error;
       }
@@ -64,6 +65,7 @@ function pinnedDirectory(folder, action) {
         throw new Error(`Unsafe Markdown directory: ${child}: ${error.message}`);
       }
       descriptors.push(descriptor);
+      if (segment === 'pongkan-docs') fchmodSync(descriptor, 0o700);
     }
     return action(`/proc/self/fd/${descriptor}`);
   } finally {
@@ -104,7 +106,7 @@ export function writeMarkdown(folder, key, content, obsolete = []) {
     const temporary = join(directory, `.pongkan-export-${randomUUID()}.tmp`);
     let created = false;
     try {
-      writeFileSync(temporary, content, { flag: 'wx', encoding: 'utf8' });
+      writeFileSync(temporary, content, { flag: 'wx', encoding: 'utf8', mode: 0o600 });
       created = true;
       check();
       renameSync(temporary, path);

@@ -5,16 +5,43 @@ on:
     tags:
       - 'v*'
 
-permissions:
-  contents: write
-
 jobs:
   release:
     name: Build release assets and publish
     runs-on: ubuntu-latest
+    permissions:
+      checks: read
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Require a CI-passing commit on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch origin main --no-tags
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
+            echo "Release tags must point to a commit contained in main."
+            exit 1
+          }
+
+          checks="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs" --jq '[.check_runs[] | select(.conclusion == "success") | .name] | unique | .[]')"
+          required_checks=(
+            "Code quality & repo hygiene"
+            "Test (Node 22 on ubuntu-latest)"
+            "Test (Node 22 on windows-latest)"
+            "Test (Node 24 on ubuntu-latest)"
+            "Test (Node 24 on windows-latest)"
+          )
+          for required in "${required_checks[@]}"; do
+            grep -Fxq "$required" <<< "$checks" || {
+              echo "Required CI check is missing or has not passed for $GITHUB_SHA: $required"
+              exit 1
+            }
+          done
 
       - name: Setup Node.js 22
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
