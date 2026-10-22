@@ -554,3 +554,81 @@ test('questions off and a limitations list do not waive a genuinely missing requ
   assert.match(flow.error, /output file does not exist/);
   validateState(crew.state);
 });
+
+test('reviewer access failure returns to an authorized writer before requesting user action', async t => {
+  let leads = 0;
+  const { crew, calls } = setup(t, (task, _calls, _crew, event) => {
+    if (task.leadDecision) {
+      leads++;
+      if (leads === 1) return decision('delegate', 'developer', 'Implement the artifact');
+      if (leads === 2) return decision('review', 'reviewer', 'Run the required checks');
+      if (leads === 3)
+        return {
+          ...decision('blocked', null, '', 'QA cannot run Node.'),
+          boundary: {
+            kind: 'unavailable_access',
+            evidence: 'Reviewer hit EPERM while loading the project.',
+            userAction: 'Provide another execution environment.',
+          },
+        };
+      if (leads === 4) return decision('delegate', 'developer', 'Diagnose and repair the check environment');
+      return decision('complete', null, '', 'Delivered after repairing the environment.');
+    }
+    if (task.kind === 'review' && leads === 2) {
+      inspect(event, 'EPERM loading project');
+      return {
+        outcome: 'unverified',
+        summary: 'Node check unavailable.',
+        criteria: [{ requirement: 'Run required checks', status: 'unverified', evidence: 'EPERM loading project' }],
+      };
+    }
+    inspect(event);
+    return task.kind === 'review' ? verified() : 'Environment repaired and check passed.';
+  });
+  crew.member('developer').codexPermissions = 'full';
+  const flow = crew.workflows.start('Deliver and check artifact', { requiresWrite: true });
+  await crew.workflows.settled(flow.id);
+  assert.equal(flow.status, 'completed', flow.error);
+  const correction = calls.filter(call => call.task.leadDecision)[3];
+  assert.match(correction.prompt, /danger-full-access/);
+  assert.match(correction.prompt, /EPERM loading project/);
+  const repair = calls.findLast(call => call.task.member === 'developer');
+  assert.equal(calls.filter(call => call.task.member === 'developer').length, 2);
+  assert.ok(repair.args.includes('danger-full-access'));
+  const reviews = calls.filter(call => call.task.kind === 'review');
+  assert.ok(reviews.every(call => call.args.includes('read-only')));
+  validateState(crew.state);
+});
+
+for (const kind of ['approval_denied', 'credentials', 'user_decision', 'unavailable_access']) {
+  test(`evidenced ${kind} boundary still stops dependent work`, async t => {
+    let leads = 0;
+    const { crew, calls } = setup(t, (task, _calls, _crew, event) => {
+      if (task.leadDecision) {
+        if (kind === 'unavailable_access' && ++leads === 1)
+          return decision('delegate', 'developer', 'Investigate execution access');
+        return {
+          ...decision('blocked', null, '', 'External prerequisite remains unavailable.'),
+          boundary: { kind, evidence: 'Necessary operation was refused.', userAction: 'Provide the required access.' },
+        };
+      }
+      event({
+        type: 'item.completed',
+        item: {
+          type: 'command_execution',
+          command: 'required-check',
+          status: 'failed',
+          exit_code: 1,
+          aggregated_output: 'Necessary operation was refused.',
+        },
+      });
+      return 'Operation was refused; access prerequisite remains unresolved.';
+    });
+    const flow = crew.workflows.start('Check artifact');
+    await crew.workflows.settled(flow.id);
+    assert.equal(flow.status, 'failed');
+    assert.match(flow.error, /Provide the required access/);
+    assert.equal(calls.length, kind === 'unavailable_access' ? 3 : 1);
+    validateState(crew.state);
+  });
+}
