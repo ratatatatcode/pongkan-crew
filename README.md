@@ -13,6 +13,7 @@ A persistent team workflow workspace powered by Codex CLI. Chat with named teamm
 - Keep separate conversations and task history for each project.
 - Run independent workflows in isolated Git worktrees.
 - Use specialist crews, project memory, recurring checks, and GitHub issue imports.
+- Get local project briefings and opt-in alerts for questions, stopped work, and finished results.
 
 ## How Crew builds on Codex
 
@@ -179,7 +180,7 @@ This preset supplies specialist instructions, not an upload interface or bundled
 
 ## Keyboard controls
 
-Rotating tips appear below the command/status line while the CLI is open.
+Rotating tips appear below the command/status line every 30 seconds while the CLI is open. They include project briefings, watch settings and inbox, recurring inspections, review evidence, and command discovery. Use `/help briefing`, `/help watch`, or `/commands watch` to find the related commands immediately.
 
 | Key                       | Action                                                                     | Sample usage                                      |
 | ------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------- |
@@ -211,6 +212,24 @@ Shared follow-ups queue after earlier shared turns and retain their submitted te
 Build a local Next.js todo app with the crew: [walkthrough](docs/TODO_WEBSITE_WALKTHROUGH.md) / [full video](assets/video/todo-result.mp4).
 
 ## Settings and saved data
+
+### Project briefings and proactive watch
+
+Use `/briefing` for questions, ongoing workflows, results from the last 24 hours, and enabled recurring checks. It shows recovery commands and distinguishes independently accepted workflows from unverified results. It reads saved Crew state without calling a model or inspecting project files and external services.
+
+Enable `/watch on 09:00` for a daily briefing and alerts when a question, stopped assignment, or finished result appears. Times use the machine's local timezone. Alerts appear in the terminal notice and Activity; `/watch inbox` retains the latest 50 notifications across restarts, including daily briefing snapshots. Existing completions are skipped when enabling watch; pending questions and failures can still alert. Watch tracks the latest 100 outstanding signals and 100 completions separately, so finished history cannot hide questions. The briefing shows up to 10 entries per section.
+
+`/watch status` shows settings, `/watch clear` clears saved notifications, and `/watch off` disables alerts and daily briefings. Watch never resumes paused work, retries assignments, or grants permissions. Clearing the inbox does not repeat unchanged alerts. After a missed briefing time, the next running check creates one briefing for the current day; missed days are not replayed.
+
+For actual recurring project inspections, use the existing scheduler:
+
+```text
+/schedule add 60 researcher Inspect project health and report actionable findings. Do not edit files.
+```
+
+Scheduled inspections make model calls under their configured access. Watch itself makes none. Disabling watch leaves schedules enabled; manage them with `/schedule pause ID`. Keep the app or `node src/cli.js --folder PROJECT_PATH --worker` running. The worker prints notifications and saves them for `/watch inbox`; the folder lock permits one app or worker per project. Work stops while the machine is off. Remote delivery, operating-system push notifications, and cloud hosting are not included.
+
+### Models and records
 
 Use `/model` to inspect model settings, `/memory add TEXT` to save project guidance, and `/schedule` for recurring checks. Routing and shared discussion prompts use recent bounded context while preserving the latest user request. Full saved history remains available; `/context on` additionally clips optional handoff and recovered-chat context. When application source changes during a session, a persistent restart notice identifies that the running process still uses its loaded code.
 

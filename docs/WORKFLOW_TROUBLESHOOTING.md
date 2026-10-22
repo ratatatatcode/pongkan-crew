@@ -54,6 +54,7 @@ If Crew cannot start because saved-state validation fails, `/recovery` cannot ru
 | Wrong chat or missing history              | [Conversations](#conversation-context-and-missing-history)                       |
 | Corrupt state or unsafe path error         | [Saved state](#saved-state-storage-and-path-errors)                              |
 | Isolated workflow cannot start             | [Worktrees](#git-and-isolated-worktree-problems)                                 |
+| Briefing or watch alerts are missing       | [Briefings and watch](#briefings-and-watch-notifications)                        |
 | Recurring tasks do not run                 | [Schedules](#schedules-and-headless-workers)                                     |
 | Markdown export fails or omits content     | [Exports](#markdown-exports-and-project-memory)                                  |
 | Keys or scrolling do not work              | [Terminal controls](#terminal-input-scrolling-and-panels)                        |
@@ -289,6 +290,18 @@ Use `/worktree list` and `/worktree show WORKFLOW_ID` to inspect isolated branch
 Crew retains isolated worktrees and does not automatically merge, push, or delete them. Review and integrate changes explicitly. A normal workflow has no isolated worktree, so “This workflow has no isolated worktree” is expected for that workflow.
 
 For Git ownership or repository access errors, inspect the repository owner and exact path. Do not globally trust every repository or force Git operations as a generic workaround.
+
+## Briefings and watch notifications
+
+Run `/briefing` to see current saved state and `/watch status` to inspect notification settings. Watch starts off; enable it with `/watch on 09:00` or another zero-padded 24-hour time. The time uses the machine's timezone. A daily briefing appears on the first running check at or after that time, once per local day; missed days are not replayed.
+
+Keep the app or worker running and the machine on. Alerts appear in the terminal notice and Activity, and `/watch inbox` retains the latest 50 across restarts. The worker prints new notifications; close it before opening the interactive app for the same project. It still refuses saved paused work, so inspect that work in the app before switching to a worker. Watch does not provide operating-system push or remote messages.
+
+Unchanged alerts are deduplicated, including after restart and `/watch clear`. Clearing the inbox does not repeat them; existing completions also do not alert when watch is enabled. Watch tracks the latest 100 outstanding signals and 100 completions separately. Briefings show up to 10 entries per section; use `/queue list`, `/questions list`, and `/workflow list` for the underlying records. Check `/workflow criteria ID` before treating a finished result as accepted.
+
+Watch reads saved state without inspecting files or calling Codex. If you expect fresh project findings, create a recurring read-only assignment with `/schedule add 60 researcher GOAL` and inspect `/schedule list`. Those inspections make model calls. `/watch off` stops notifications and daily briefings; it leaves schedules enabled. Use `/schedule pause ID` to disable a recurring inspection. Watch never resumes failed or paused work on its own.
+
+Briefing snapshots and alerts are stored in private state, not separate Markdown files. `/markdown on` applies to eligible finished assignments, workflows, and discussions, including standalone scheduled results. See the [export contract](MARKDOWN_SAVING_CONTRACT.md#what-is-saved).
 
 ## Schedules and headless workers
 

@@ -24,6 +24,7 @@ import { ChatSessions } from './chat-sessions.js';
 import { ProjectMemory } from './project-memory.js';
 import { Worktrees } from './worktrees.js';
 import { Scheduler } from './scheduler.js';
+import { CrewWatch } from './briefing.js';
 import { Github } from './github.js';
 import { workPolicy } from './questions.js';
 import { MarkdownExporter, markdownDirectory } from './markdown-export.js';
@@ -165,6 +166,7 @@ export class Crew extends EventEmitter {
     this.inputs = new InputRouter(this);
     this.presets = new Presets(this);
     this.scheduler = new Scheduler(this);
+    this.watch = new CrewWatch(this);
     this.github = new Github(this.folder);
   }
   get leadName() {

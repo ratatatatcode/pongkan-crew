@@ -42,6 +42,7 @@ export class Scheduler {
     this.crew.save();
   }
   tick(now = Date.now(), onlyId = null) {
+    this.crew.watch?.tick(now);
     if (this.crew.queue.paused || this.crew.queue.closing) return [];
     const dispatched = [];
     for (const job of this.crew.state.schedules) {
@@ -83,6 +84,7 @@ export async function runWorker(crew, { once = false, signal } = {}) {
     crew.scheduler.tick();
     if (once) {
       while (crew.queue.inflight.size) await Promise.allSettled([...crew.queue.inflight]);
+      crew.watch?.tick();
       return;
     }
     await new Promise(resolve => {

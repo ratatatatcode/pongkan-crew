@@ -13,6 +13,7 @@ import { workflowReport, criteriaLines, searchHistory, nextAction, taskNextActio
 import { usageLines } from './usage.js';
 import { templateCommand } from './task-templates.js';
 import { openCommandPicker } from './command-picker.js';
+import { briefingLines } from './briefing.js';
 export const HELP = [
   'Type normally and press Enter: the recipient AI interprets your full request.',
   'Slash commands are optional overrides. UPPERCASE = replace with a value; [VALUE] = optional.',
@@ -75,6 +76,12 @@ export const HELP = [
   '/schedule add MINUTES NAME GOAL Create a recurring read-only task',
   '/schedule add MINUTES NAME --write GOAL Allow member write permissions',
   '/schedule list|pause ID|resume ID|run ID Manage recurring tasks',
+  '/briefing                     Summarize saved progress and questions without a model call',
+  '/watch on [HH:MM]             Enable local alerts; daily briefing uses machine local time',
+  '/watch off                    Disable alerts and daily briefings; schedules keep running',
+  '/watch status                 Show settings; alerts require the app or --worker running',
+  '/watch inbox                  Read the latest 50 saved alerts and daily briefings',
+  '/watch clear                  Clear the inbox without repeating unchanged alerts',
   '/github issue|pr OWNER/REPO NUMBER Read a GitHub issue or PR',
   '/github task OWNER/REPO NUMBER [--isolated] Implement an issue locally',
   '/conversation list           List named conversations',
@@ -750,6 +757,23 @@ export function execute(app, line, { submission = 'enter' } = {}) {
       chat(crew.leadName);
       app.notice = `Workflow ${flow.id} created from GitHub issue. No remote changes sent.`;
     });
+  } else if (command === '/briefing') {
+    if (parts.length) throw new Error('Use /briefing.');
+    panel('PONGKAN CREW BRIEFING', () => briefingLines(crew));
+  } else if (command === '/watch') {
+    const [action = 'status', time] = parts;
+    if (action === 'on' && parts.length <= 2) {
+      crew.watch.enable(time);
+      app.notice = `Pongkan Crew watch ON; daily briefing at ${crew.state.watch.time} machine local time. Keep the app or --worker running.`;
+    } else if (parts.length <= 1 && action === 'off') {
+      crew.watch.disable();
+      app.notice = 'Pongkan Crew watch OFF. Recurring schedules keep their own settings.';
+    } else if (parts.length <= 1 && action === 'clear') {
+      crew.watch.clear();
+      app.notice = 'Pongkan Crew notification inbox cleared.';
+    } else if (parts.length <= 1 && ['status', 'inbox'].includes(action)) {
+      panel('PONGKAN CREW WATCH', () => crew.watch.lines(action === 'inbox'));
+    } else throw new Error('Use /watch on [HH:MM]|off|status|inbox|clear.');
   } else if (command === '/schedule') {
     const [action = 'list', id, ...rest] = parts;
     if (action === 'list' && !id)

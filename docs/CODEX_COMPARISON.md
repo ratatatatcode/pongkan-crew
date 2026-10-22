@@ -16,7 +16,7 @@ Codex supplies code exploration, editing, shell tools, tests, image inputs, web 
 | Sessions                    | Resume, fork, archive, unarchive, and delete                         | Own named private/shared conversations and archive management backed by Codex sessions; no session-fork interface |
 | Queues and visibility       | Agent-session browser and message queue                              | Task queue, waiting questions, dependencies, Activity, and saved workflow progress                                |
 | Isolation                   | Managed worktree option in installed `codex exec --help`             | Creates and retains workflow worktrees from committed HEAD                                                        |
-| Automation                  | Non-interactive runs, JSON events, structured output, scripts and CI | Uses exec internally; adds recurring assignments and a worker process                                             |
+| Automation                  | Non-interactive runs, JSON events, structured output, scripts and CI | Recurring assignments, a worker process, local saved-state briefings, and opt-in daily/event alerts               |
 | Project guidance            | Project instructions and custom configuration                        | Editable memory entries injected into assignments                                                                 |
 | Integrations                | Plugin and MCP management                                            | Can inherit Codex configuration; no dedicated management interface                                                |
 | Inputs and controls         | Image attachments, search, profiles, permissions, local providers    | Text composer and per-member model/effort controls; other features are not fully exposed                          |
@@ -36,6 +36,7 @@ Codex's [command reference](https://learn.chatgpt.com/docs/developer-commands?su
 - Ready-made teams and explicit lead/reviewer identities.
 - Coordination of Crew-managed writers, with separate worktrees for isolated workflows.
 - Combined Markdown records, editable project guidance, recurring assignments, and GitHub issue-to-workflow commands.
+- Local project briefings and opt-in watch notifications with a persistent inbox; these saved-state views make no model calls.
 
 These advantages primarily reduce setup and coordination effort. Names and personalities aid navigation; they do not establish greater expertise.
 
@@ -47,7 +48,7 @@ These advantages primarily reduce setup and coordination effort. Names and perso
 - Corrections apply at task boundaries rather than interrupting the current Codex turn.
 - New lead workflows complete only after independent verification reports the requested outcome met. Older legacy workflows can retain earlier completion semantics; inspect their review reports and any unverified criteria.
 - Image attachments, native session forking, cost estimates, integration management, and cloud/remote controls are not exposed in Crew's interface. `/usage` shows saved reported tokens for newly measured turns; older or unreported usage remains unavailable. Model-turn budgets do not cap token usage or spending.
-- Schedules require the app or worker to run. History recovery does not roll back project files; isolated worktrees are not automatically merged or removed.
+- Schedules and opt-in `/watch` alerts require the app or worker to run. `/briefing` summarizes saved state without model calls or live project inspection; notifications are local with a saved inbox, without remote push or cloud hosting. History recovery does not roll back project files; isolated worktrees are not automatically merged or removed.
 - Crew adds state, subprocess, and orchestration maintenance on top of Codex. Compatibility depends on its CLI flags and event protocol.
 - The sandbox comes from Codex. Crew's coordination and prompts are not an operating-system security boundary; see [Security](../SECURITY.md).
 

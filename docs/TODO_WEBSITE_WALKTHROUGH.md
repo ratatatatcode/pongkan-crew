@@ -117,6 +117,18 @@ npm.cmd run dev
 
 Open the local address printed by Next.js, usually `http://localhost:3000`. Try adding, editing, completing, filtering, deleting, and refreshing todos in the same browser profile.
 
+## Optional project briefings and recurring checks
+
+In Pongkan Crew, use `/briefing` to inspect saved progress, waiting questions, recent results, and enabled checks. Enable `/watch on 09:00` for local alerts and a daily briefing in machine local time. Read saved notifications with `/watch inbox`; these commands make no model calls and do not inspect the running todo app.
+
+For a recurring read-only source inspection, enter:
+
+```text
+/schedule add 60 researcher Inspect the todo project's source and saved check results for actionable regressions. Do not edit files. Report any checks you cannot verify.
+```
+
+This uses Codex under read-only schedule access. Keep Crew or its worker running with the machine on. Use `/schedule list` to find the schedule ID, then `/schedule pause ID` to disable inspections. `/watch off` only disables alerts. Completed standalone inspection results follow `/markdown` settings; briefing snapshots stay in the saved inbox. See the [briefing and watch guide](COMMANDS.md#project-briefings-and-proactive-watch) for background-worker setup and limits.
+
 ## What the sample uses
 
 - Next.js, initialized in `todo-app` with `npx.cmd create-next-app@latest . --use-npm --yes`.

@@ -92,11 +92,14 @@ async function main() {
     process.once('SIGINT', stop);
     process.once('SIGTERM', stop);
     console.log(`Worker active: ${crew.folder}. Press Ctrl+C to stop.`);
+    const logWatch = notice => console.log(`${notice.text}\n${notice.detail}`);
+    crew.on('watch', logWatch);
     try {
       await runWorker(crew, { once, signal: controller.signal });
     } finally {
       process.removeListener('SIGINT', stop);
       process.removeListener('SIGTERM', stop);
+      crew.removeListener('watch', logWatch);
       await crew.close();
       release();
     }
@@ -349,6 +352,10 @@ async function main() {
     render();
   });
   crew.on('change', render);
+  crew.on('watch', notice => {
+    app.notice = `${notice.text} /watch inbox to read; /briefing for current progress.`;
+    render();
+  });
   process.stdout.on('resize', render);
   process.on('SIGTERM', app.quit);
   process.on('SIGINT', app.quit);
