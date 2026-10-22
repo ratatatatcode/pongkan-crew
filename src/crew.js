@@ -436,7 +436,7 @@ export class Crew extends EventEmitter {
     let usageRecorded = false;
     const schemaPath = schema ? join(this.folder, '.pongkan-crew', `schema-${randomUUID()}.json`) : null;
     let recoveredContext = '';
-    if (!shared && flow?.engine !== 'lead') {
+    if (!shared && flow?.engine !== 'lead' && !session.threadId) {
       // This workflow's results already arrive through the task handoff. Replaying
       // its generated prompts here repeats the goal and all prior handoffs.
       const workflowTaskIds = task?.workflowId

@@ -56,13 +56,13 @@ The default crew is **Chief, Researcher, Developer, and Reviewer**. Press **Tab 
 | Individual Chat       | The selected teammate                                   | `How does state persistence work?`            |
 | `@NAME MESSAGE`       | The named teammate, using shared Crew Chat context      | `@developer Implement the agreed layout.`     |
 
-Plain messages go directly to the selected teammate in Individual Chat, or to the designated lead in Crew Chat unless you name a recipient with `@NAME`. When that conversation has unfinished workflow tasks, follow-ups are interpreted against the current assignments so they can resume or correct existing work. This uses saved conversation and task state, not phrase matching. Use `/task` or `/crew-task` to start a new coordinated workflow, and `/discuss` for team discussion.
+Crew Chat and Activity use lead-led handling by default. One routing call interprets your request against saved conversation and task state: advice, greetings, and status normally get one read-only lead reply; work requests start a lead-led workflow that delegates only useful bounded assignments and requires independent review. Approvals can execute the discussed plan, and follow-ups can resume or correct unfinished work. Individual Chat goes directly to the selected teammate unless unfinished workflow tasks need coordination. `@NAME` preserves an explicit recipient within their permissions.
 
 Natural-language routing does not grant access: each action still follows the selected recipient's permissions. Developer can implement an edit or perform authorized Git work directly; Reviewer stays read-only. Questions and actions use the same delivery path.
 
 Every personality uses this same delivery and execution behavior. Styles change wording and tone, never permissions or action selection. Short acknowledgements such as “Okay” keep the recipient's configured access and conversation context.
 
-Messages are saved and queued for the recipient or workflow. Follow-ups retain the conversation context. Use `/discuss` for team discussion and `/task` or `/crew-task` for an explicit coordinated workflow with independent review. With no unfinished workflow in context, ordinary text stays with the recipient; when unfinished work exists, the router can continue it without repeating completed steps.
+Messages are saved and queued for the recipient or workflow. Follow-ups retain the conversation context. Use `/discuss` for full team discussion and `/task` or `/crew-task` to start a workflow explicitly. You can also explicitly ask multiple teammates for their perspectives in ordinary language; this requests one read-only round. A broadly addressed message such as “Hi everyone” does not by itself request replies from every teammate.
 
 ```text
 How should we improve the navigation?
@@ -94,7 +94,11 @@ To ask a question of only one teammate, start the message with `@NAME`:
 
 `@developer Replace Show and Hide with Show summary and Hide summary.` queues one Developer turn with write access. `@developer Commit and push.` uses the same direct path. Enter and Shift+Left use the same delivery. A mention does not change the recipient's configured access.
 
-Ordinary messages request one recipient's reply. Use `@NAME` to address a teammate, or `/discuss` to request replies from the crew. `/discuss` explicitly schedules two rounds and a lead summary.
+Use `@NAME` to address one teammate, or `/discuss` for two read-only rounds and a lead summary. Full group discussion is optional; ordinary shared messages use the lead to choose a reply or execution instead of scheduling the whole roster.
+
+Each working turn launches a background Codex CLI process, then exits; saved session IDs let later turns resume the appropriate conversation. Resumed private chats rely on that session instead of replaying the saved transcript. Within a discussion or lead workflow, each member receives new or changed shared findings rather than unchanged records already supplied to that session. The latest discussion request, assignments, permissions, and clarification answers remain explicit. Fresh sessions receive the normal context snapshot; full transcripts and Markdown exports stay intact.
+
+This reduces repeated wrapper input, not the context Codex maintains inside a resumed session. Shared routing, delegation, independent review, and optional discussions still use model calls. Clipping can omit evidence; inspect full saved results when needed. `/usage` shows reported tokens, including cached input; no fixed token or cost saving is guaranteed.
 
 Crew Chat and individual chats use separate sessions. A teammate's individual chat does not automatically receive what they just discussed in Crew Chat. Continue with `@NAME` in Crew Chat when you want them to use that discussion, or include the relevant details in their individual chat. Use `/crew-task` to start a workflow from the saved discussion.
 
@@ -109,13 +113,13 @@ You can ask a teammate for work in ordinary language within their configured acc
 
 These optional overrides create a coordinated workflow in which the lead selects bounded work, requests independent review, and delivers the verified result. Use `/task` for a standalone goal and `/crew-task` to carry the current Crew Chat discussion into implementation. Lead decisions and live teammate replies appear in the originating Crew Chat. Future assignments and task records appear in Activity.
 
-**Individual chat context:** Workflows originating in Crew Chat use separate execution sessions. Standalone workflows use each teammate's active individual conversation. The lead plans with their own chat context; selecting Developer and entering `/task` does not automatically send Developer's private conversation to the lead. `/crew-task` explicitly includes Crew Chat history, but does not collect everyone's private chats. Include relevant private-chat decisions in the goal or Crew Chat before starting.
+**Individual chat context:** New lead workflows use their own persistent execution sessions, separate from private and discussion sessions, including standalone workflows. Selecting Developer and entering `/task` does not automatically send Developer's private conversation to the lead. `/crew-task` explicitly includes Crew Chat history, but does not collect everyone's private chats. Include relevant private-chat decisions in the goal or Crew Chat before starting. Explicit legacy workflows retain their previous session behavior.
 
 ### Share a private exchange with another teammate
 
-In Developer's individual Chat, enter `/share reviewer Review keyboard support`. This copies the latest completed user/assistant exchange into a new named Crew Chat for Developer and Reviewer. Both reply there in read-only discussion rounds, and follow-ups stay with that duo. Older private exchanges and other individual chats stay private; mentioning a teammate alone does not share anything. Wait for the private reply to finish before sharing.
+In Developer's individual Chat, enter `/share reviewer Review keyboard support`. This copies the latest completed user/assistant exchange into a new named Crew Chat for Developer and Reviewer. Both reply there in read-only discussion rounds, and explicit joint discussion follow-ups stay with that duo. Older private exchanges and other individual chats stay private; mentioning a teammate alone does not share anything. Wait for the private reply to finish before sharing.
 
-Use `/crew-task` after the discussion finishes to execute with its shared findings. A plain approval is interpreted by its recipient AI and does not schedule a workflow. `/crew-task --isolated` carries those findings into a separate worktree with fresh individual conversations. Workflow planning, implementation, and review can involve additional crew members. `/handoff` remains a direct assignment to one teammate; `/share` creates a visible shared discussion.
+Use `/crew-task` after the discussion finishes to execute with its shared findings. A plain approval in Crew Chat can also start lead-led execution; if discussion is still running, execution waits for its final findings. `/crew-task --isolated` carries those findings into a separate worktree with fresh conversations. Workflow planning, implementation, and review can involve additional crew members. `/handoff` remains a direct assignment to one teammate; `/share` creates a visible shared discussion. Ordinary follow-ups use the lead by default; explicitly request both participants' replies when you want another joint discussion.
 
 ### Adding `--isolated`
 

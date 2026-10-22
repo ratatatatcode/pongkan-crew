@@ -1,3 +1,33 @@
+import { createHash } from 'node:crypto';
+
+// Only acknowledge successful delivery to a real session. A fresh/replaced
+// thread or older saved state gets the normal context snapshot again.
+export function sessionContext(session, records) {
+  const hashes = records.map(record => createHash('sha256').update(`${record.label}\n${record.text}`).digest('hex'));
+  const seen = new Set(session?.threadId && session.contextThreadId === session.threadId ? session.contextHashes : []);
+  return {
+    records: records.filter((_record, index) => !seen.has(hashes[index])),
+    commit(prompt) {
+      if (!session?.threadId) return;
+      const current = session.contextThreadId === session.threadId ? session.contextHashes || [] : [];
+      const supplied = hashes.filter((_hash, index) => prompt.includes(`${records[index].label}:`));
+      session.contextHashes = [...new Set([...current, ...supplied])].slice(-256);
+      session.contextThreadId = session.threadId;
+    },
+  };
+}
+
+export function validSessionContext(session) {
+  return (
+    (session.contextThreadId === undefined ||
+      (typeof session.contextThreadId === 'string' && !!session.contextThreadId)) &&
+    (session.contextHashes === undefined ||
+      (Array.isArray(session.contextHashes) &&
+        session.contextHashes.length <= 256 &&
+        session.contextHashes.every(value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value))))
+  );
+}
+
 // Deterministic, local clipping of optional context. Never rewrites saved history.
 // The character budget is a target: user text and source labels are never dropped.
 export function optimizeContext(records, { budget = 24000 } = {}) {

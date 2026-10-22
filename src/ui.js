@@ -17,7 +17,7 @@ const CLI_TIPS = [
   '/new starts a fresh chat and keeps the old conversation saved.',
   '/new-all starts fresh conversations for the whole crew.',
   '/personality lists chat styles; tone never changes a teammate’s role.',
-  'Type your request normally; the teammate AI interprets it. /crew-task starts coordinated work.',
+  'Crew Chat uses lead-led handling; /discuss explicitly requests full team discussion.',
   'F2 switches between Chat, Crew Chat, and Activity.',
   'Shift+Enter inserts a new line; Enter sends the complete prompt.',
   'Up/Down browses prompt history and restores your current draft.',
@@ -260,7 +260,9 @@ export function screen(
           row(''),
           ...(input.question
             ? clarificationRows(input)
-            : wrap(capitalize(inputStatus(crew, input)), readingWidth).map(text => row(text, 'muted'))),
+            : wrap(capitalize(inputStatus(crew, input, { concise: true })), readingWidth).map(text =>
+                row(text, 'muted'),
+              )),
           row(''),
           row(''),
         ],
@@ -350,7 +352,9 @@ export function screen(
     if (latest && !(view === 'group' && latest.question))
       content.push(
         row(''),
-        ...wrap(`Status · ${capitalize(inputStatus(crew, latest))}`, readingWidth).map(text => row(text, 'muted')),
+        ...wrap(`Status · ${capitalize(inputStatus(crew, latest, { concise: true }))}`, readingWidth).map(text =>
+          row(text, 'muted'),
+        ),
       );
     if (latest && view === 'chat' && ['queued', 'routing', 'blocked', 'interrupted'].includes(latest.status))
       content.push(

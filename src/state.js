@@ -7,6 +7,7 @@ import { MAX_TURN_BUDGET } from './lead-execution.js';
 import { validUsage } from './usage.js';
 import { TEMPLATE_NAME } from './task-templates.js';
 import { BRIEFING_TIME } from './briefing.js';
+import { validSessionContext } from './context.js';
 const NAME = /^[a-z][a-z0-9-]{0,31}$/;
 const ID = /^[a-f0-9]{8}$/;
 const TASK_STATUS = new Set(['queued', 'running', 'waiting', 'completed', 'failed', 'cancelled', 'interrupted']);
@@ -297,6 +298,7 @@ export function validateState(state) {
               !NAME.test(name) ||
               !session ||
               typeof session !== 'object' ||
+              !validSessionContext(session) ||
               !(session.threadId === null || typeof session.threadId === 'string'),
           )),
     )
@@ -350,7 +352,10 @@ export function validateState(state) {
         Array.isArray(flow.sessions) ||
         Object.entries(flow.sessions).some(
           ([name, session]) =>
-            !NAME.test(name) || !session || (session.threadId !== null && typeof session.threadId !== 'string'),
+            !NAME.test(name) ||
+            !session ||
+            !validSessionContext(session) ||
+            (session.threadId !== null && typeof session.threadId !== 'string'),
         ) ||
         !Array.isArray(flow.progressEvidence) ||
         flow.progressEvidence.length > 200 ||
