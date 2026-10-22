@@ -2,6 +2,14 @@
 
 [README](../README.md) | [Command reference](COMMANDS.md) | [Security](../SECURITY.md)
 
+## Project briefings and watch settings
+
+Restart Crew from the updated source, targeting the same project folder. `/briefing` is available immediately. State remains version 1: projects without watch settings load with watch off, a 09:00 machine-local briefing time, and empty notification and deduplication records. Existing tasks, conversations, schedules, and permissions are preserved; no history backfill or model call is needed.
+
+Enable `/watch on [HH:MM]` per project. The enabled setting, chosen time, last briefing date, notification inbox, and deduplication records persist in `.pongkan-crew/state.json`. `/watch inbox` retains the latest 50 notifications after restart. Unchanged alerts and already delivered daily briefings are not repeated; enabling watch skips existing completions while leaving pending questions and failures eligible. Invalid explicit watch records fail state validation rather than being reset silently.
+
+The app or worker must stay running to check watch state. Saved unfinished work still needs its normal explicit inspection and resume; enabling watch does not restart it. `/watch off` retains notifications and time settings and leaves recurring schedules enabled. Briefing snapshots are saved in the inbox, independently of `/markdown` exports. See the [command guide](COMMANDS.md#project-briefings-and-proactive-watch) for setup and limits.
+
 ## Reports, usage, templates, and command discovery
 
 Restart with `/restart` after updating. `/commands` opens the searchable picker; `/workflow report ID` and `/workflow criteria ID` expose work and review evidence. `/search TEXT` searches saved history and memory without a model call. `/worktree review ID` previews readiness without merging branches.

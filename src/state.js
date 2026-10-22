@@ -6,6 +6,7 @@ import { MAX_RECOVERY_ATTEMPTS, MAX_RECOVERY_STALLS, recoveryBoundary } from './
 import { MAX_TURN_BUDGET } from './lead-execution.js';
 import { validUsage } from './usage.js';
 import { TEMPLATE_NAME } from './task-templates.js';
+import { BRIEFING_TIME } from './briefing.js';
 const NAME = /^[a-z][a-z0-9-]{0,31}$/;
 const ID = /^[a-f0-9]{8}$/;
 const TASK_STATUS = new Set(['queued', 'running', 'waiting', 'completed', 'failed', 'cancelled', 'interrupted']);
@@ -63,6 +64,35 @@ export function validateState(state) {
     throw new Error('Invalid crew state. Back up .pongkan-crew/state.json before repairing it.');
   };
   if (!state || state.version !== 1 || !Array.isArray(state.members)) invalid();
+  if (state.watch === undefined)
+    state.watch = { enabled: false, time: '09:00', lastBriefingDate: null, seen: [], inbox: [] };
+  const watch = state.watch;
+  if (
+    !watch ||
+    typeof watch !== 'object' ||
+    Array.isArray(watch) ||
+    typeof watch.enabled !== 'boolean' ||
+    typeof watch.time !== 'string' ||
+    !BRIEFING_TIME.test(watch.time) ||
+    (watch.lastBriefingDate !== null &&
+      (typeof watch.lastBriefingDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(watch.lastBriefingDate))) ||
+    !Array.isArray(watch.seen) ||
+    watch.seen.length > 200 ||
+    watch.seen.some(key => typeof key !== 'string' || !/^[a-f0-9]{64}$/.test(key)) ||
+    !Array.isArray(watch.inbox) ||
+    watch.inbox.length > 50 ||
+    watch.inbox.some(
+      notice =>
+        !notice ||
+        !Number.isFinite(notice.at) ||
+        notice.at < 0 ||
+        typeof notice.text !== 'string' ||
+        notice.text.length > 500 ||
+        typeof notice.detail !== 'string' ||
+        notice.detail.length > 24000,
+    )
+  )
+    invalid();
   if (state.usage !== undefined && !validUsage(state.usage)) invalid();
   if (state.templates === undefined) state.templates = [];
   if (

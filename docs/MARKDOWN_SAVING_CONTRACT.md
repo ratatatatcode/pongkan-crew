@@ -16,6 +16,8 @@ This contract describes the current finished-record exporter in `src/markdown-ex
 
 `/crew add` adds a teammate. It is separate from the `/markdown` commands and does not create a Markdown export by itself.
 
+`/briefing` is a local saved-state view. Watch alerts and daily briefing snapshots persist in the notification inbox in private `.pongkan-crew/state.json`; `/watch inbox` reads them. They do not create task records or separate Markdown exports, and `/markdown refresh` does not backfill them. `/watch clear` only clears the inbox. Finished standalone scheduled inspections are normal task records and follow the export rules below. Watch settings and `/markdown` settings remain independent.
+
 - Export one combined document per finished workflow containing its goal, plan, assignments, coordination/revision turns, final review, and summary. Use one document title, task headings beneath it, and assignment/response subsections beneath each task; preserve response Markdown as supplied. Include available task IDs, members, kinds, statuses, timestamps, assignments, responses, clarification questions and answers, errors, and captured changed-file names.
 - Export finished standalone assignments as task documents. Completed, failed, cancelled, and interrupted records preserve available results. Running, queued, and waiting records are not exported; workflows and discussions also wait for their associated tasks to settle.
 - Export finished Crew Chat discussions with discussion ID, status, timestamp, and ordered user/assistant messages with speaker labels. Live progress stays in the app; exports do not stream incremental replies.

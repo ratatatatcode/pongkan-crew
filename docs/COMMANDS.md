@@ -1,5 +1,26 @@
 # Pongkan Crew input and command reference
 
+## Project briefings and proactive watch
+
+`/briefing` reads saved Crew state locally: questions needing answers, ongoing workflows, results from the last 24 hours, and enabled recurring checks. It includes next commands and marks results without independent acceptance as unverified. It makes no model call and does not inspect source files or external services.
+
+Enter these commands separately:
+
+```text
+/briefing
+/watch on 09:00
+/watch status
+/watch inbox
+```
+
+Watch starts off for each project. `/watch on` uses the saved daily time, initially 09:00; `/watch on HH:MM` changes it using 24-hour machine local time. While enabled, watch saves a daily briefing snapshot and alerts about questions, stopped work, and finished results. A missed daily time produces one briefing on the next running check for that day. Missed days are not replayed. Existing completions are skipped when enabling watch; outstanding questions and failures can still alert.
+
+Alerts appear in the terminal notice and Activity. `/watch inbox` reads the latest 50 notifications across restarts, newest first. Watch tracks the latest 100 outstanding signals and 100 completions separately; briefings show up to 10 items per section. `/watch clear` clears saved notifications without repeating unchanged alerts. `/watch off` disables alerts and daily briefings, retaining the inbox and chosen time. It does not disable recurring schedules.
+
+Keep the app or `node src/cli.js --folder PROJECT_PATH --worker` running with the machine on. The worker prints new notifications and saves them in the same inbox; only one app or worker can own a project's folder lock. Watch never resumes paused work, retries assignments, grants permissions, or makes model calls. For recurring source inspections, use `/schedule add MINUTES NAME GOAL`; those assignments use Codex and its configured access. Use `/schedule pause ID` to stop an inspection schedule.
+
+Watch records live in private `.pongkan-crew/state.json`. Briefings and alerts do not create Markdown export files; scheduled standalone results follow the normal `/markdown` settings. See [troubleshooting](WORKFLOW_TROUBLESHOOTING.md#briefings-and-watch-notifications) for missing alerts and [upgrading](UPGRADING.md#project-briefings-and-watch-settings) for saved settings.
+
 ## Reports, search, usage, and reusable tasks
 
 | Command                    | Purpose                                                                  | Example                                                                |
@@ -126,6 +147,12 @@ New workflows started from Crew Chat keep real member replies in that conversati
 | `/memory add TEXT`                            | Save a project decision; duplicate text is reused                                            |
 | `/memory remove ID`                           | Remove a saved decision                                                                      |
 | `/steer TASK_OR_WORKFLOW_ID TEXT`             | Apply a correction at the next task boundary                                                 |
+| `/briefing`                                   | Local summary of questions, workflows, recent results, and recurring checks                  |
+| `/watch on [HH:MM]`                           | Enable alerts and daily briefing; default 09:00 in machine local time                        |
+| `/watch off`                                  | Disable alerts and daily briefing; schedules retain their enabled settings                   |
+| `/watch status`                               | Show settings and background requirements (also the default `/watch` action)                 |
+| `/watch inbox`                                | Read the latest 50 saved alerts and daily briefing snapshots                                 |
+| `/watch clear`                                | Clear notifications without repeating unchanged alerts                                       |
 | `/schedule add MINUTES NAME GOAL`             | Recurring read-only task in a dedicated conversation                                         |
 | `/schedule add MINUTES NAME --write GOAL`     | Recurring task with that member's normal access                                              |
 | `/schedule list`                              | Intervals, next runs, and enabled state                                                      |
