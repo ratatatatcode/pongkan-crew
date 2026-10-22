@@ -150,9 +150,14 @@ export function workflowFeed(
                         : 'Working on the assignment';
         rows.push(...wrapText(`${label(task.member)} · ${action}`, width).map(text => ({ text, tone: 'muted' })));
       }
-      if (task.error)
+      let error = task.error?.trim();
+      if (error && result && !rawVerification) {
+        if (result.includes(error)) error = '';
+        else if (error.startsWith(result.trim())) error = error.slice(result.trim().length).trim();
+      }
+      if (error)
         rows.push(
-          ...wrapText(`${label(task.member)}: ${task.error}`, width).map(text => ({ text, tone: 'system' })),
+          ...wrapText(`${label(task.member)}: ${error}`, width).map(text => ({ text, tone: 'system' })),
           { text: '', tone: 'body' },
           { text: '', tone: 'body' },
         );

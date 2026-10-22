@@ -473,7 +473,7 @@ export class InputRouter {
   }
 }
 
-export function inputStatus(crew, input) {
+export function inputStatus(crew, input, { concise = false } = {}) {
   if (input.answeredAt) return 'Answered';
   if (input.status !== 'dispatched')
     return input.question
@@ -487,8 +487,8 @@ export function inputStatus(crew, input) {
   if (flow) {
     if (flow.status === 'failed')
       return flow.engine === 'lead'
-        ? `Incomplete: ${flow.error || 'Inspect the outstanding findings in Activity.'} Model turns: ${flow.turns}/${flow.turnBudget}.`
-        : `Incomplete: ${flow.error || 'Automatic recovery could not verify the outcome; inspect /activity for its findings.'} Automatic recovery attempts: ${flow.recoveryAttempts || 0}.`;
+        ? `Incomplete: ${concise ? 'Details in /activity.' : flow.error || 'Inspect the outstanding findings in Activity.'} Model turns: ${flow.turns}/${flow.turnBudget}.`
+        : `Incomplete: ${concise ? 'Details in /activity.' : flow.error || 'Automatic recovery could not verify the outcome; inspect /activity for its findings.'} Automatic recovery attempts: ${flow.recoveryAttempts || 0}.`;
     const waiting = crew.state.tasks.find(task => task.workflowId === flow.id && task.status === 'waiting');
     return waiting
       ? `blocked: ${waiting.member}: ${waiting.question}`

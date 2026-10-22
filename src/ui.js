@@ -260,7 +260,9 @@ export function screen(
           row(''),
           ...(input.question
             ? clarificationRows(input)
-            : wrap(capitalize(inputStatus(crew, input)), readingWidth).map(text => row(text, 'muted'))),
+            : wrap(capitalize(inputStatus(crew, input, { concise: true })), readingWidth).map(text =>
+                row(text, 'muted'),
+              )),
           row(''),
           row(''),
         ],
@@ -350,7 +352,9 @@ export function screen(
     if (latest && !(view === 'group' && latest.question))
       content.push(
         row(''),
-        ...wrap(`Status · ${capitalize(inputStatus(crew, latest))}`, readingWidth).map(text => row(text, 'muted')),
+        ...wrap(`Status · ${capitalize(inputStatus(crew, latest, { concise: true }))}`, readingWidth).map(text =>
+          row(text, 'muted'),
+        ),
       );
     if (latest && view === 'chat' && ['queued', 'routing', 'blocked', 'interrupted'].includes(latest.status))
       content.push(

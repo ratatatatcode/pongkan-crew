@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { workflowFeed } from '../src/workflow-feed.js';
+import { inputStatus } from '../src/input-router.js';
 
 test('Crew Chat separates progress from the next turn and formats recovery decisions', () => {
   const crew = {
@@ -87,4 +88,57 @@ test('Activity renders readable plans and separates assignments from Markdown re
   assert.match(output, /\n\nResult\n/);
   assert.doesNotMatch(output, /\*\*/);
   assert.match(output, /  1\. Verify[^\n]*\n     /);
+});
+
+test('Crew Chat displays a blocker once while Activity retains the error', () => {
+  const blocker = 'The required local runtime is unavailable.';
+  const crew = {
+    state: {
+      workflows: [{ id: 'flow', lead: 'chief' }],
+      tasks: [
+        {
+          id: 'work',
+          workflowId: 'flow',
+          member: 'chief',
+          kind: 'work',
+          status: 'failed',
+          text: 'Validate the migration',
+          result: `PONGKAN_BLOCKED: ${blocker}`,
+          error: blocker,
+        },
+      ],
+    },
+  };
+  const chat = workflowFeed(crew, 100, null, { conversation: true })
+    .map(row => row.text)
+    .join('\n');
+  assert.equal(chat.split(blocker).length - 1, 1);
+  assert.match(
+    workflowFeed(crew, 100)
+      .map(row => row.text)
+      .join('\n'),
+    /local runtime is unavailable/,
+  );
+});
+
+test('compact workflow status does not repeat the failure report', () => {
+  const crew = {
+    state: {
+      tasks: [],
+      workflows: [
+        {
+          id: 'flow',
+          status: 'failed',
+          engine: 'lead',
+          error: 'Long diagnostic report.',
+          turns: 5,
+          turnBudget: 64,
+        },
+      ],
+    },
+  };
+  const input = { status: 'dispatched', workflowId: 'flow' };
+  assert.doesNotMatch(inputStatus(crew, input, { concise: true }), /Long diagnostic report/);
+  assert.match(inputStatus(crew, input, { concise: true }), /5\/64/);
+  assert.match(inputStatus(crew, input), /Long diagnostic report/);
 });
